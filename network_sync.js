@@ -1,4 +1,59 @@
-/* network_sync.js - Cross-Device Realtime Network Synchronization for GitHub Pages & Web Hosting */
+/* network_sync.js - Cross-Device Realtime Network Synchronization for Onrender & Web Hosting */
+
+// Production Onrender and Localhost Configuration
+const ONRENDER_BASE_URL = 'https://ddvq.onrender.com';
+const LOCAL_BASE_URL = 'http://localhost:3000';
+
+/**
+ * Smart URL resolver that guarantees the app functions seamlessly in both
+ * Local (Node server / localhost:3000) and Online (Onrender / https://ddvq.onrender.com / file://) environments.
+ */
+function getApiUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+
+    // 1. Custom server URL defined in localStorage (if any)
+    try {
+        const customUrl = localStorage.getItem('ddvq_server_url');
+        if (customUrl && customUrl.trim()) {
+            return customUrl.trim().replace(/\/+$/, '') + cleanPath;
+        }
+    } catch (e) {}
+
+    // 2. Browser location detection
+    if (typeof window !== 'undefined' && window.location) {
+        // When running via file:// protocol or offline file without a local host
+        if (window.location.protocol === 'file:' || !window.location.host) {
+            return ONRENDER_BASE_URL + cleanPath;
+        }
+
+        const hostname = window.location.hostname || '';
+        // If served from local server or dev environment, use relative path or local port
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+            return cleanPath;
+        }
+
+        // If hosted on Render (e.g. ddvq.onrender.com)
+        if (hostname.includes('onrender.com')) {
+            return cleanPath;
+        }
+
+        // If hosted on GitHub Pages or external static host
+        if (hostname.includes('github.io') || hostname.includes('surge.sh') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
+            return ONRENDER_BASE_URL + cleanPath;
+        }
+    }
+
+    // Default: relative path works natively on local Node server and Onrender deployed app
+    return cleanPath;
+}
+
+window.getApiUrl = getApiUrl;
+window.ONRENDER_BASE_URL = ONRENDER_BASE_URL;
+window.LOCAL_BASE_URL = LOCAL_BASE_URL;
 
 (function () {
     // Global IndexedDB Media Cache Helper for large media files (Videos / Images)

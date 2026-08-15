@@ -221,6 +221,7 @@
         <div class="bottom-right-box" id="ts_badge_box">TS 1</div>
     </div>
 
+    <script src="network_sync.js"></script>
     <script>
         let contestantId = parseInt(localStorage.getItem('contestant_id')) || 1;
         document.getElementById('ts_select').value = contestantId;
@@ -250,20 +251,43 @@
             const ans = document.getElementById('answer_input').value.trim();
             if (!ans) return;
 
-            fetch('/api/action', {
+            const timeText = document.getElementById('time_box').innerText;
+            const submitPayload = {
+                type: 'PLAYER_SUBMIT_ANSWER',
+                contestantId: contestantId,
+                round: currentRound,
+                answer: ans,
+                time: timeText,
+                timestamp: Date.now()
+            };
+
+            // Local broadcast channel
+            try {
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const channel = new BroadcastChannel('ddvq_game_channel');
+                    channel.postMessage(submitPayload);
+                }
+            } catch(e) {}
+
+            try {
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage(submitPayload, '*');
+                }
+            } catch(e) {}
+
+            try {
+                localStorage.setItem('ddvq_latest_action', JSON.stringify(submitPayload));
+            } catch(e) {}
+
+            const actionUrl = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/action') : '/api/action';
+            fetch(actionUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'PLAYER_SUBMIT_ANSWER',
-                    contestantId: contestantId,
-                    round: currentRound,
-                    answer: ans,
-                    time: document.getElementById('time_box').innerText
-                })
+                body: JSON.stringify(submitPayload)
             }).then(() => {
-                alert(`Đã gửi đáp án: "${ans}"`);
-            }).catch(e => {
-                console.error(e);
+                alert(`Đã gửi đáp án: "${ans}" (${timeText})`);
+            }).catch(() => {
+                alert(`Đã lưu đáp án: "${ans}" (${timeText})`);
             });
         }
 
@@ -283,46 +307,82 @@
             }, 1000);
         }
 
-        if (typeof EventSource !== 'undefined') {
-            const sse = new EventSource('/api/events');
-            sse.onmessage = function(e) {
+        function handleScene2Action(data) {
+            if (!data || !data.type) return;
+
+            // Ra Khơi events
+            if (data.type === 'RA_KHOI_PLAY_CLIP' || data.type === 'RA_KHOI_SHOW_QUESTION') {
+                currentRound = 'RK';
+                if (data.questionText) {
+                    document.getElementById('question_text').innerText = data.questionText;
+                }
+            } else if (data.type === 'RA_KHOI_START_TIMER') {
+                currentRound = 'RK';
+                startTimer(data.duration || 30);
+            } else if (data.type === 'RA_KHOI_RESET') {
+                clearInterval(timerInterval);
+                document.getElementById('time_box').innerText = "Thời gian";
+                document.getElementById('question_text').innerText = "Đang chờ câu hỏi Ra Khơi...";
+                document.getElementById('answer_input').value = "";
+            }
+
+            // Vinh Quang events
+            else if (data.type === 'VINH_QUANG_SHOW_QUESTION') {
+                currentRound = 'VQ';
+                if (data.questionText) {
+                    document.getElementById('question_text').innerText = data.questionText;
+                }
+            } else if (data.type === 'VINH_QUANG_START_TIMER') {
+                currentRound = 'VQ';
+                startTimer(data.duration || 25);
+            } else if (data.type === 'VINH_QUANG_RESET') {
+                clearInterval(timerInterval);
+                document.getElementById('time_box').innerText = "Thời gian";
+                document.getElementById('question_text').innerText = "Đang chờ câu hỏi Vinh Quang...";
+                document.getElementById('answer_input').value = "";
+            }
+
+            if (data.latestAction && typeof data.latestAction === 'object') {
+                handleScene2Action(data.latestAction);
+            }
+        }
+
+        // BroadcastChannel
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                const channel = new BroadcastChannel('ddvq_game_channel');
+                channel.onmessage = function(e) {
+                    handleScene2Action(e.data);
+                };
+            }
+        } catch(e) {}
+
+        // Window storage listener
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'ddvq_latest_action' && e.newValue) {
                 try {
-                    const data = JSON.parse(e.data);
-                    if (!data || !data.type) return;
-
-                    // Ra Khơi events
-                    if (data.type === 'RA_KHOI_PLAY_CLIP' || data.type === 'RA_KHOI_SHOW_QUESTION') {
-                        currentRound = 'RK';
-                        if (data.questionText) {
-                            document.getElementById('question_text').innerText = data.questionText;
-                        }
-                    } else if (data.type === 'RA_KHOI_START_TIMER') {
-                        currentRound = 'RK';
-                        startTimer(data.duration || 30);
-                    } else if (data.type === 'RA_KHOI_RESET') {
-                        clearInterval(timerInterval);
-                        document.getElementById('time_box').innerText = "Thời gian";
-                        document.getElementById('question_text').innerText = "Đang chờ câu hỏi Ra Khơi...";
-                        document.getElementById('answer_input').value = "";
-                    }
-
-                    // Vinh Quang events
-                    else if (data.type === 'VINH_QUANG_SHOW_QUESTION') {
-                        currentRound = 'VQ';
-                        if (data.questionText) {
-                            document.getElementById('question_text').innerText = data.questionText;
-                        }
-                    } else if (data.type === 'VINH_QUANG_START_TIMER') {
-                        currentRound = 'VQ';
-                        startTimer(data.duration || 25);
-                    } else if (data.type === 'VINH_QUANG_RESET') {
-                        clearInterval(timerInterval);
-                        document.getElementById('time_box').innerText = "Thời gian";
-                        document.getElementById('question_text').innerText = "Đang chờ câu hỏi Vinh Quang...";
-                        document.getElementById('answer_input').value = "";
-                    }
+                    handleScene2Action(JSON.parse(e.newValue));
                 } catch(err) {}
-            };
+            }
+        });
+
+        // Window postMessage listener
+        window.addEventListener('message', function(e) {
+            if (e.data) handleScene2Action(e.data);
+        });
+
+        // SSE Connection
+        if (typeof EventSource !== 'undefined') {
+            try {
+                const sseUrl = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/events') : '/api/events';
+                const sse = new EventSource(sseUrl);
+                sse.onmessage = function(e) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        handleScene2Action(data);
+                    } catch(err) {}
+                };
+            } catch(e) {}
         }
     </script>
 

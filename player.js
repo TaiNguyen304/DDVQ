@@ -2,11 +2,27 @@ let contestantId = (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID)
 let currentRoomCode = localStorage.getItem('ddvq_room_code') || '';
 let playerContestants = [];
 
+const ONRENDER_BASE_URL_PLAYER = 'https://ddvq.onrender.com';
+
 function getApiUrl(path) {
-    if (window.location.protocol === 'file:' || !window.location.host) {
-        return 'http://localhost:3000' + path;
+    if (typeof window !== 'undefined' && typeof window.getApiUrl === 'function' && window.getApiUrl !== getApiUrl) {
+        return window.getApiUrl(path);
     }
-    return path;
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+
+    try {
+        const customUrl = localStorage.getItem('ddvq_server_url');
+        if (customUrl && customUrl.trim()) {
+            return customUrl.trim().replace(/\/+$/, '') + cleanPath;
+        }
+    } catch(e) {}
+
+    if (window.location.protocol === 'file:' || !window.location.host) {
+        return ONRENDER_BASE_URL_PLAYER + cleanPath;
+    }
+    return cleanPath;
 }
 
 function onLoginPlayerSelectChange() {
@@ -624,7 +640,8 @@ function submitScene2Answer() {
         return;
     }
 
-    fetch('/api/action', {
+    const actionUrl = typeof getApiUrl === 'function' ? getApiUrl('/api/action') : '/api/action';
+    fetch(actionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitPayload)
@@ -698,7 +715,8 @@ function submitScene3Answer(isVongThi = false) {
             return;
         }
 
-        fetch('/api/action', {
+        const actionUrl = typeof getApiUrl === 'function' ? getApiUrl('/api/action') : '/api/action';
+        fetch(actionUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submitPayload)
@@ -763,7 +781,8 @@ function submitScene3Answer(isVongThi = false) {
             return;
         }
 
-        fetch('/api/action', {
+        const actionUrl = typeof getApiUrl === 'function' ? getApiUrl('/api/action') : '/api/action';
+        fetch(actionUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submitPayload)
@@ -890,7 +909,8 @@ function submitScene4Answer() {
         return;
     }
 
-    fetch('/api/action', {
+    const actionUrl = typeof getApiUrl === 'function' ? getApiUrl('/api/action') : '/api/action';
+    fetch(actionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitPayload)
@@ -1336,13 +1356,13 @@ function triggerRandomDeFromPlayer() {
         localStorage.setItem('ddvq_latest_action', JSON.stringify(payload));
     } catch(e) {}
 
-    if (window.location.protocol !== 'file:') {
-        fetch('/api/action', {
+    try {
+        fetch(getApiUrl('/api/action'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).catch(() => {});
-    }
+    } catch(e) {}
 
     showToast(`🎲 Đã chọn ngẫu nhiên: Bộ đề ${chosenSet}`);
 }

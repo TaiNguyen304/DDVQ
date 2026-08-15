@@ -287,6 +287,7 @@
         </div>
     </div>
 
+    <script src="network_sync.js"></script>
     <script>
         let contestantId = parseInt(localStorage.getItem('contestant_id')) || 1;
         document.getElementById('ts_select').value = contestantId;
@@ -313,20 +314,43 @@
             const ans = document.getElementById('answer_input').value.trim();
             if (!ans) return;
 
-            fetch('/api/action', {
+            const submitPayload = {
+                type: 'PLAYER_SUBMIT_ANSWER',
+                contestantId: contestantId,
+                round: 'VS',
+                isVongThi: false,
+                answer: ans,
+                row: selectedRow,
+                timestamp: Date.now()
+            };
+
+            // Local broadcast channel
+            try {
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const channel = new BroadcastChannel('ddvq_game_channel');
+                    channel.postMessage(submitPayload);
+                }
+            } catch(e) {}
+
+            try {
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage(submitPayload, '*');
+                }
+            } catch(e) {}
+
+            try {
+                localStorage.setItem('ddvq_latest_action', JSON.stringify(submitPayload));
+            } catch(e) {}
+
+            const actionUrl = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/action') : '/api/action';
+            fetch(actionUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'PLAYER_SUBMIT_ANSWER',
-                    contestantId: contestantId,
-                    round: 'VS',
-                    answer: ans,
-                    row: selectedRow
-                })
+                body: JSON.stringify(submitPayload)
             }).then(() => {
                 alert(`Đã gửi đáp án Vượt Sóng: "${ans}"`);
-            }).catch(e => {
-                console.error(e);
+            }).catch(() => {
+                alert(`Đã lưu đáp án Vượt Sóng: "${ans}"`);
             });
         }
 
@@ -341,27 +365,63 @@
             }
         }
 
-        if (typeof EventSource !== 'undefined') {
-            const sse = new EventSource('/api/events');
-            sse.onmessage = function(e) {
-                try {
-                    const data = JSON.parse(e.data);
-                    if (!data || !data.type) return;
+        function handleScene3Action(data) {
+            if (!data || !data.type) return;
 
-                    if (data.type === 'VUOT_SONG_SELECT_ROW') {
-                        highlightActiveRow(data.row || 0);
-                    } else if (data.type === 'VUOT_SONG_SHOW_QUESTION') {
-                        if (data.row) highlightActiveRow(data.row);
-                        if (data.questionText) {
-                            document.getElementById('question_text').innerText = data.questionText;
-                        }
-                    } else if (data.type === 'VUOT_SONG_RESET') {
-                        highlightActiveRow(0);
-                        document.getElementById('question_text').innerText = "Đang chờ chọn hàng ngang Vượt Sóng...";
-                        document.getElementById('answer_input').value = "";
-                    }
+            if (data.type === 'VUOT_SONG_SELECT_ROW') {
+                highlightActiveRow(data.row || 0);
+            } else if (data.type === 'VUOT_SONG_SHOW_QUESTION') {
+                if (data.row) highlightActiveRow(data.row);
+                if (data.questionText) {
+                    document.getElementById('question_text').innerText = data.questionText;
+                }
+            } else if (data.type === 'VUOT_SONG_RESET') {
+                highlightActiveRow(0);
+                document.getElementById('question_text').innerText = "Đang chờ chọn hàng ngang Vượt Sóng...";
+                document.getElementById('answer_input').value = "";
+            }
+
+            if (data.latestAction && typeof data.latestAction === 'object') {
+                handleScene3Action(data.latestAction);
+            }
+        }
+
+        // BroadcastChannel
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                const channel = new BroadcastChannel('ddvq_game_channel');
+                channel.onmessage = function(e) {
+                    handleScene3Action(e.data);
+                };
+            }
+        } catch(e) {}
+
+        // Window storage listener
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'ddvq_latest_action' && e.newValue) {
+                try {
+                    handleScene3Action(JSON.parse(e.newValue));
                 } catch(err) {}
-            };
+            }
+        });
+
+        // Window postMessage listener
+        window.addEventListener('message', function(e) {
+            if (e.data) handleScene3Action(e.data);
+        });
+
+        // SSE Connection
+        if (typeof EventSource !== 'undefined') {
+            try {
+                const sseUrl = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/events') : '/api/events';
+                const sse = new EventSource(sseUrl);
+                sse.onmessage = function(e) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        handleScene3Action(data);
+                    } catch(err) {}
+                };
+            } catch(e) {}
         }
     </script>
 

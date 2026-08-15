@@ -326,40 +326,105 @@ setInterval(() => {
   });
 }, 5000);
 
-// Serve index.html or controller.html at root route
+// Root route: Serve index.html or controller.html
 app.get('/', (req, res) => {
-  if (fs.existsSync(path.join(__dirname, 'index.html'))) {
-    res.sendFile(path.join(__dirname, 'index.html'));
-  } else {
+  if (fs.existsSync(path.join(__dirname, 'controller.html'))) {
     res.sendFile(path.join(__dirname, 'controller.html'));
+  } else if (fs.existsSync(path.join(__dirname, 'index.html'))) {
+    res.sendFile(path.join(__dirname, 'index.html'));
   }
 });
 
-// Serve projector.html explicitly
-app.get(['/projector', '/projector.html', '/graphic', '/graphic.html'], (req, res) => {
+// Explicit routes for all HTML files (accessible with or without .html, uppercase or lowercase)
+app.get(['/controller', '/controller.html', '/index', '/index.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'controller.html'));
+});
+
+app.get(['/projector', '/projector.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'projector.html'));
 });
 
-// Serve host page (MC Host Screen)
+app.get(['/graphic', '/graphic.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'graphic.html'));
+});
+
 app.get(['/host', '/host.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'host.html'));
 });
 
-// Serve player pages strictly (individual player screens)
+app.get(['/player', '/player.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'player.html'));
+});
+
 app.get(['/player1', '/player1.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'player1.html'));
 });
+
 app.get(['/player2', '/player2.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'player2.html'));
 });
+
 app.get(['/player3', '/player3.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'player3.html'));
 });
+
 app.get(['/player4', '/player4.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'player4.html'));
 });
-app.get(['/player', '/player.html', '/player_scene1.html', '/player_scene2.html', '/player_scene3.html'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'player.html'));
+
+app.get(['/player_scene1', '/player_scene1.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'player_scene1.html'));
+});
+
+app.get(['/player_scene2', '/player_scene2.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'player_scene2.html'));
+});
+
+app.get(['/player_scene3', '/player_scene3.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'player_scene3.html'));
+});
+
+app.get(['/scoreboard', '/scoreboard.html', '/Scoreboard', '/Scoreboard.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'Scoreboard.html'));
+});
+
+app.get(['/scoreboard1', '/scoreboard1.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'scoreboard1.html'));
+});
+
+app.get(['/scoreboard2', '/scoreboard2.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'scoreboard2.html'));
+});
+
+app.get(['/scoreboard3', '/scoreboard3.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'scoreboard3.html'));
+});
+
+app.get(['/scoreboard4', '/scoreboard4.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'scoreboard4.html'));
+});
+
+// Generic dynamic handler: Allows accessing any https://ddvq.onrender.com/<tên file HTML> or <tên file>
+app.get('/:filename', (req, res, next) => {
+  const rawParam = decodeURIComponent(req.params.filename || '');
+  if (!rawParam || rawParam.startsWith('api')) return next();
+
+  const cleanName = rawParam.toLowerCase().replace(/\.html$/, '');
+  try {
+    const files = fs.readdirSync(__dirname);
+    const matched = files.find(f => {
+      const fLower = f.toLowerCase();
+      return fLower === rawParam.toLowerCase() ||
+             fLower === `${cleanName}.html` ||
+             fLower === cleanName;
+    });
+
+    if (matched && (matched.toLowerCase().endsWith('.html') || matched.toLowerCase().endsWith('.htm'))) {
+      return res.sendFile(path.join(__dirname, matched));
+    }
+  } catch (e) {}
+
+  next();
 });
 
 app.listen(PORT, '0.0.0.0', () => {

@@ -983,11 +983,27 @@ function handleIncomingPlayerAnswer(data) {
     }
 }
 
+const ONRENDER_BASE_URL = 'https://ddvq.onrender.com';
+
 function getApiUrl(path) {
-    if (window.location.protocol === 'file:' || !window.location.host) {
-        return 'http://localhost:3000' + path;
+    if (typeof window !== 'undefined' && typeof window.getApiUrl === 'function' && window.getApiUrl !== getApiUrl) {
+        return window.getApiUrl(path);
     }
-    return path;
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+
+    try {
+        const customUrl = localStorage.getItem('ddvq_server_url');
+        if (customUrl && customUrl.trim()) {
+            return customUrl.trim().replace(/\/+$/, '') + cleanPath;
+        }
+    } catch(e) {}
+
+    if (window.location.protocol === 'file:' || !window.location.host) {
+        return ONRENDER_BASE_URL + cleanPath;
+    }
+    return cleanPath;
 }
 
 let controllerConnectedClients = {
@@ -1240,9 +1256,6 @@ function updateProjectorStatus(isConnected) {
 
 function sendToProjector(type, payload = {}) {
     const message = { type, ...payload, timestamp: Date.now(), id: Math.random().toString(36).substring(2, 9) };
-    if (typeof sendSupabaseAction === 'function') {
-        sendSupabaseAction(message);
-    }
     if (controllerChannel) {
         try {
             controllerChannel.postMessage(message);
