@@ -83,9 +83,50 @@ function switchTab(index) {
 }
 
 // Show Toast Notification
-function showToast(msg) {
-    console.log("[Controller Toast]:", msg);
-    // Disabled UI toast on controller to prevent lag and button obstruction as requested.
+function showToast(msg, duration = 3000) {
+    if (!msg) return;
+    console.log("[Toast]:", msg);
+    if (typeof document === 'undefined') return;
+
+    let toast = document.getElementById('ddvq_floating_toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'ddvq_floating_toast';
+        toast.style.position = 'fixed';
+        toast.style.bottom = '25px';
+        toast.style.right = '25px';
+        toast.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+        toast.style.color = '#ffffff';
+        toast.style.padding = '12px 22px';
+        toast.style.borderRadius = '8px';
+        toast.style.fontSize = '14px';
+        toast.style.fontWeight = 'bold';
+        toast.style.boxShadow = '0 10px 25px rgba(0,0,0,0.4)';
+        toast.style.zIndex = '999999';
+        toast.style.transition = 'all 0.3s ease';
+        toast.style.pointerEvents = 'none';
+        toast.style.border = '1px solid rgba(255,255,255,0.2)';
+        toast.style.maxWidth = '80vw';
+        toast.style.lineHeight = '1.4';
+        toast.style.whiteSpace = 'pre-wrap';
+        document.body.appendChild(toast);
+    }
+
+    toast.innerText = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+    toast.style.display = 'block';
+
+    if (window._toastTimeout) clearTimeout(window._toastTimeout);
+    window._toastTimeout = setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+            if (toast.style.opacity === '0') {
+                toast.style.display = 'none';
+            }
+        }, 300);
+    }, duration);
 }
 
 function escapeHtml(text) {
@@ -390,7 +431,7 @@ function handleExcelUpload(event) {
             saveAllData(true);
         } catch (err) {
             console.error("Excel parse error:", err);
-            alert("Lỗi khi đọc file Excel. Vui lòng kiểm tra đúng định dạng mẫu đề!");
+            showToast("Lỗi khi đọc file Excel. Vui lòng kiểm tra đúng định dạng mẫu đề!", 4000);
         }
     };
     reader.readAsArrayBuffer(file);
@@ -734,16 +775,17 @@ function loadSavedData() {
 }
 
 function resetAllData() {
-    if (confirm("Bạn có chắc chắn muốn xóa và thiết lập lại toàn bộ dữ liệu không?")) {
-        if (gameData && gameData.contestants) {
-            gameData.contestants.forEach((c, i) => {
-                c.score = 0;
-            });
-        }
-        sendToProjector('RESET_ALL_DATA');
-        safeRemoveStorage('duong_den_vinh_quang_data');
-        location.reload();
+    if (gameData && gameData.contestants) {
+        gameData.contestants.forEach((c) => {
+            c.score = 0;
+        });
     }
+    sendToProjector('RESET_ALL_DATA');
+    safeRemoveStorage('duong_den_vinh_quang_data');
+    showToast('Đã xóa và đặt lại toàn bộ dữ liệu hệ thống!', 3000);
+    setTimeout(() => {
+        location.reload();
+    }, 500);
 }
 
 function updateContestantName(i, val) {
@@ -1322,22 +1364,22 @@ function updateContestantName(idx, val) {
 function promptScore(idx) {
     if (!gameData.contestants || !gameData.contestants[idx - 1]) return;
     const current = gameData.contestants[idx - 1]?.score || 0;
-    const newScore = prompt(`Nhập điểm cho Thí sinh ${idx}:`, current);
-    if (newScore !== null && !isNaN(parseInt(newScore))) {
-        gameData.contestants[idx - 1].score = parseInt(newScore);
-        const disps = [
-            document.getElementById(`ts${idx}_score_disp`),
-            document.getElementById(`ts${idx}_score_disp_rk`),
-            document.getElementById(`ts${idx}_score_disp_vq`)
-        ];
-        disps.forEach(disp => { if (disp) disp.innerText = gameData.contestants[idx - 1].score; });
-        saveAllData();
-        if (typeof updateTab1Preview === 'function') updateTab1Preview();
-        sendToProjector('XUAT_PHAT_SELECT_CONTESTANT', {
-            name: gameData.contestants[idx - 1].name,
-            score: gameData.contestants[idx - 1].score
-        });
-    }
+    // Provide quick modal-free score adjuster: increment by 10
+    const newScore = current + 10;
+    gameData.contestants[idx - 1].score = newScore;
+    const disps = [
+        document.getElementById(`ts${idx}_score_disp`),
+        document.getElementById(`ts${idx}_score_disp_rk`),
+        document.getElementById(`ts${idx}_score_disp_vq`)
+    ];
+    disps.forEach(disp => { if (disp) disp.innerText = gameData.contestants[idx - 1].score; });
+    saveAllData();
+    if (typeof updateTab1Preview === 'function') updateTab1Preview();
+    sendToProjector('XUAT_PHAT_SELECT_CONTESTANT', {
+        name: gameData.contestants[idx - 1].name,
+        score: gameData.contestants[idx - 1].score
+    });
+    showToast(`Đã tăng điểm Thí sinh ${idx} lên: ${newScore}`);
 }
 
 function triggerFilePicker(targetInputId, acceptType) {
@@ -1429,13 +1471,6 @@ window.vqCorrectAnswer = function(idx) {
     let packVal = 20;
     if (typeof currentVQPack !== 'undefined' && currentVQPack) {
         packVal = currentVQPack;
-    } else {
-        const customVal = prompt("Nhập điểm của câu hỏi Vinh Quang hiện tại (10/20/30):", "20");
-        if (customVal !== null && !isNaN(parseInt(customVal))) {
-            packVal = parseInt(customVal);
-        } else {
-            return;
-        }
     }
     
     const isStarActive = window.vqStars[idx - 1];
@@ -1452,13 +1487,6 @@ window.vqIncorrectAnswer = function(idx) {
     let packVal = 20;
     if (typeof currentVQPack !== 'undefined' && currentVQPack) {
         packVal = currentVQPack;
-    } else {
-        const customVal = prompt("Nhập điểm của câu hỏi Vinh Quang hiện tại (10/20/30):", "20");
-        if (customVal !== null && !isNaN(parseInt(customVal))) {
-            packVal = parseInt(customVal);
-        } else {
-            return;
-        }
     }
     
     const isStarActive = window.vqStars[idx - 1];
@@ -1472,13 +1500,13 @@ window.vqIncorrectAnswer = function(idx) {
 }
 
 function onClickTongKet() {
-    let summary = "TỔNG KẾT ĐIỂM SỐ CÁC THÍ SINH:\n";
+    let summary = "📊 TỔNG KẾT ĐIỂM SỐ CÁC THÍ SINH:\n";
     if (gameData.contestants) {
         gameData.contestants.forEach((ts, idx) => {
-            summary += `${ts.name || 'Thí sinh ' + (idx+1)}: ${ts.score || 0} điểm\n`;
+            summary += `• ${ts.name || 'Thí sinh ' + (idx+1)}: ${ts.score || 0} điểm\n`;
         });
     }
-    alert(summary);
+    showToast(summary, 5000);
 }
 
 function onClickPlayIntroVideo(src) {

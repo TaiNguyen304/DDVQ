@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <!-- Disable DevTools -->
+    <script src="disable-devtools.js"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Giao diện Điều khiển Trò chơi - Đường Đến Vinh Quang</title>
@@ -1390,7 +1393,7 @@
                     saveAllData(true);
                 } catch(err) {
                     console.error("Excel parse error:", err);
-                    alert("Lỗi đọc file Excel. Vui lòng kiểm tra file đề.");
+                    showToast("Lỗi đọc file Excel. Vui lòng kiểm tra file đề.");
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -1606,19 +1609,19 @@
 
         function promptScore(idx) {
             const current = gameData.contestants[idx - 1]?.score || 0;
-            const newScore = prompt(`Nhập điểm cho Thí sinh ${idx}:`, current);
-            if (newScore !== null && !isNaN(parseInt(newScore))) {
-                gameData.contestants[idx - 1].score = parseInt(newScore);
-                syncContestantsUI();
-                saveAllData();
-            }
+            const newScore = current + 10;
+            gameData.contestants[idx - 1].score = newScore;
+            syncContestantsUI();
+            saveAllData();
+            showToast(`Đã tăng điểm Thí sinh ${idx} lên: ${newScore}`);
         }
 
         function resetAllData() {
-            if (confirm("Xóa toàn bộ dữ liệu hệ thống?")) {
-                localStorage.removeItem('duong_den_vinh_quang_data');
+            localStorage.removeItem('duong_den_vinh_quang_data');
+            showToast("Đã xóa toàn bộ dữ liệu hệ thống!");
+            setTimeout(() => {
                 location.reload();
-            }
+            }, 500);
         }
 
         function updateContestantNames() {
@@ -1718,9 +1721,9 @@
         function onClickDatLaiVongThi() { sendToProjector('XUAT_PHAT_RESET'); }
         function onClickHoanThanh() { sendToProjector('XUAT_PHAT_FINISH'); }
         function onClickTongKet() {
-            let s = "TỔNG KẾT ĐIỂM:\n";
-            gameData.contestants.forEach(c => s += `${c.name}: ${c.score} điểm\n`);
-            alert(s);
+            let s = "📊 TỔNG KẾT ĐIỂM:\n";
+            gameData.contestants.forEach(c => s += `• ${c.name}: ${c.score} điểm\n`);
+            showToast(s);
         }
 
         // Ra khoi / Vuot song actions
