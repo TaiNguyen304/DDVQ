@@ -423,6 +423,7 @@ function parseExcelWorkbook(workbook) {
     renderVinhQuangPackUI(currentVinhQuangPack);
     fillCauHoiPhuInputs();
     updateVuotSongState();
+    if (typeof updateTab1Preview === 'function') updateTab1Preview();
 }
 
 function parseXuatPhatSheet(rows) {
@@ -433,15 +434,18 @@ function parseXuatPhatSheet(rows) {
         const row = rows[r];
         if (!row || row.length < 2) continue;
 
-        const sttDe = row[0] !== undefined && row[0] !== "" ? parseInt(row[0]) : null;
+        const sttDeRaw = row[0] !== undefined && row[0] !== "" ? row[0].toString().trim() : "";
         const questionText = (row[1] || "").toString().trim();
         const answerText = (row[2] || "").toString().trim();
 
         if (!questionText && !answerText) continue;
 
-        if (sttDe && !isNaN(sttDe)) {
-            currentTurn = sttDe;
-            currentItemIndex = 0;
+        if (sttDeRaw) {
+            const parsedNum = parseInt(sttDeRaw);
+            if (!isNaN(parsedNum) && parsedNum >= 1 && parsedNum <= 12) {
+                currentTurn = parsedNum;
+                currentItemIndex = 0;
+            }
         }
 
         if (!gameData.xuatPhat[currentTurn]) {
@@ -461,7 +465,7 @@ function parseXuatPhatSheet(rows) {
 
 function parseRaKhoiSheet(rows) {
     if (!Array.isArray(gameData.raKhoi)) {
-        gameData.raKhoi = [ {q:"",a:""}, {q:"",a:""}, {q:"",a:""}, {q:"",a:""} ];
+        gameData.raKhoi = [ {q:"",a:"",m:"",am:""}, {q:"",a:"",m:"",am:""}, {q:"",a:"",m:"",am:""}, {q:"",a:"",m:"",am:""} ];
     }
     let count = 0;
     for (let r = 2; r < rows.length && count < 4; r++) {
@@ -472,7 +476,12 @@ function parseRaKhoiSheet(rows) {
         const aText = (row[2] || "").toString().trim();
 
         if (qText || aText) {
-            gameData.raKhoi[count] = { q: qText, a: aText, m: "...", am: "..." };
+            gameData.raKhoi[count] = {
+                q: qText,
+                a: aText,
+                m: gameData.raKhoi[count]?.m || "",
+                am: gameData.raKhoi[count]?.am || ""
+            };
             count++;
         }
     }
@@ -482,7 +491,7 @@ function parseVuotSongSheet(rows) {
     if (!gameData.vuotSong || Array.isArray(gameData.vuotSong)) {
         gameData.vuotSong = { h1: {q:"",a:""}, h2: {q:"",a:""}, h3: {q:"",a:""}, h4: {q:"",a:""}, center: {q:"",a:""}, keyword: "" };
     }
-    let rowIndex = 1;
+    let hangNgangIndex = 1;
     for (let r = 2; r < rows.length; r++) {
         const row = rows[r];
         if (!row || row.length < 2) continue;
@@ -491,17 +500,15 @@ function parseVuotSongSheet(rows) {
         const qText = (row[1] || "").toString().trim();
         const aText = (row[2] || "").toString().trim();
 
-        if (colA.toUpperCase().includes("TRUNG TÂM") || colA.toUpperCase().includes("TỪ KHÓA") || r === 6) {
-            if (r === 6 && !colA.toUpperCase().includes("ĐÁP ÁN VÒNG THI")) {
-                gameData.vuotSong.center = { q: qText, a: aText };
-            }
-        } else if (rowIndex <= 4) {
-            gameData.vuotSong[`h${rowIndex}`] = { q: qText, a: aText };
-            rowIndex++;
-        }
+        if (!qText && !aText) continue;
 
-        if (colA.toUpperCase().includes("TỪ KHÓA") || colA.toUpperCase().includes("ĐÁP ÁN VÒNG THI")) {
+        const upperA = colA.toUpperCase();
+        if (upperA.includes("ĐÁP ÁN VÒNG THI") || upperA.includes("TỪ KHÓA") || upperA.includes("TRUNG TÂM") || upperA.includes("HÀNG DỌC") || upperA.includes("CHƯỚNG NGẠI VẬT") || r === 6) {
+            gameData.vuotSong.center = { q: qText, a: aText };
             gameData.vuotSong.keyword = aText || qText;
+        } else if (hangNgangIndex <= 4) {
+            gameData.vuotSong[`h${hangNgangIndex}`] = { q: qText, a: aText };
+            hangNgangIndex++;
         }
     }
 }
@@ -535,13 +542,16 @@ function parseVinhQuangSheet(rows) {
         if (m20 || q20 || a20) gameData.vinhQuang[20][questionIndex] = { m: m20, q: q20, a: a20 };
         if (m30 || q30 || a30) gameData.vinhQuang[30][questionIndex] = { m: m30, q: q30, a: a30 };
 
-        questionIndex++;
+        if (m10 || q10 || a10 || m20 || q20 || a20 || m30 || q30 || a30) {
+            questionIndex++;
+        }
     }
 }
 
 function parseCauHoiPhuSheet(rows) {
+    if (!Array.isArray(gameData.cauHoiPhu)) gameData.cauHoiPhu = [];
     let count = 0;
-    for (let r = 2; r < rows.length && count < 3; r++) {
+    for (let r = 2; r < rows.length && count < 5; r++) {
         const row = rows[r];
         if (!row || row.length < 2) continue;
 
@@ -983,8 +993,6 @@ function handleIncomingPlayerAnswer(data) {
     }
 }
 
-const ONRENDER_BASE_URL = 'https://ddvq.onrender.com';
-
 function getApiUrl(path) {
     if (typeof window !== 'undefined' && typeof window.getApiUrl === 'function' && window.getApiUrl !== getApiUrl) {
         return window.getApiUrl(path);
@@ -1000,8 +1008,9 @@ function getApiUrl(path) {
         }
     } catch(e) {}
 
+    const onrenderBase = (typeof window !== 'undefined' && window.ONRENDER_BASE_URL) || 'https://ddvq.onrender.com';
     if (window.location.protocol === 'file:' || !window.location.host) {
-        return ONRENDER_BASE_URL + cleanPath;
+        return onrenderBase + cleanPath;
     }
     return cleanPath;
 }

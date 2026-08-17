@@ -1,8 +1,8 @@
 /* network_sync.js - Cross-Device Realtime Network Synchronization for Onrender & Web Hosting */
 
 // Production Onrender and Localhost Configuration
-const ONRENDER_BASE_URL = 'https://ddvq.onrender.com';
-const LOCAL_BASE_URL = 'http://localhost:3000';
+window.ONRENDER_BASE_URL = window.ONRENDER_BASE_URL || 'https://ddvq.onrender.com';
+window.LOCAL_BASE_URL = window.LOCAL_BASE_URL || 'http://localhost:3000';
 
 /**
  * Smart URL resolver that guarantees the app functions seamlessly in both
@@ -23,11 +23,13 @@ function getApiUrl(path) {
         }
     } catch (e) {}
 
+    const onrenderBase = window.ONRENDER_BASE_URL || 'https://ddvq.onrender.com';
+
     // 2. Browser location detection
     if (typeof window !== 'undefined' && window.location) {
         // When running via file:// protocol or offline file without a local host
         if (window.location.protocol === 'file:' || !window.location.host) {
-            return ONRENDER_BASE_URL + cleanPath;
+            return onrenderBase + cleanPath;
         }
 
         const hostname = window.location.hostname || '';
@@ -43,7 +45,7 @@ function getApiUrl(path) {
 
         // If hosted on GitHub Pages or external static host
         if (hostname.includes('github.io') || hostname.includes('surge.sh') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
-            return ONRENDER_BASE_URL + cleanPath;
+            return onrenderBase + cleanPath;
         }
     }
 
@@ -52,8 +54,6 @@ function getApiUrl(path) {
 }
 
 window.getApiUrl = getApiUrl;
-window.ONRENDER_BASE_URL = ONRENDER_BASE_URL;
-window.LOCAL_BASE_URL = LOCAL_BASE_URL;
 
 (function () {
     // Global IndexedDB Media Cache Helper for large media files (Videos / Images)

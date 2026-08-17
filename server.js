@@ -62,6 +62,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Handle favicon.ico
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // Serve static assets
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
