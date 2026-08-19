@@ -298,7 +298,10 @@ app.post('/api/action', (req, res) => {
       };
     }
 
-    if (actionData.type.startsWith('XUAT_PHAT_')) currentServerState.activeRound = 'XUAT_PHAT';
+    if (actionData.type === 'SET_ACTIVE_ROUND' || actionData.type === 'SWITCH_SCENE') {
+      if (actionData.round) currentServerState.activeRound = actionData.round;
+      if (actionData.scene) currentServerState.activeScene = actionData.scene;
+    } else if (actionData.type.startsWith('XUAT_PHAT_')) currentServerState.activeRound = 'XUAT_PHAT';
     else if (actionData.type.startsWith('RA_KHOI_')) currentServerState.activeRound = 'RA_KHOI';
     else if (actionData.type.startsWith('VUOT_SONG_')) currentServerState.activeRound = 'VUOT_SONG';
     else if (actionData.type.startsWith('VINH_QUANG_')) currentServerState.activeRound = 'VINH_QUANG';

@@ -285,13 +285,13 @@
             .then(res => {
                 if (btn) btn.disabled = false;
                 if (res.success) {
-                    showToast('Đăng nhập thành công! Đang chuyển đến phòng thi...');
+                    showToast(`Đăng nhập Thí sinh ${contestantId} thành công! Đang chuyển đến phòng thi...`);
                     sessionStorage.setItem('ddvq_room_code', roomCode);
                     sessionStorage.setItem('ddvq_player_auth', res.auth || password);
                     sessionStorage.setItem('ddvq_contestant_id', contestantId);
                     setTimeout(() => {
-                        window.location.href = `player.html?id=${contestantId}&roomid=${encodeURIComponent(roomCode)}&auth=${encodeURIComponent(res.auth || password)}`;
-                    }, 500);
+                        window.location.href = `player${contestantId}.html?id=${contestantId}&roomid=${encodeURIComponent(roomCode)}&auth=${encodeURIComponent(res.auth || password)}`;
+                    }, 400);
                 } else {
                     showError(res.error || 'Mã phòng hoặc Mật khẩu không chính xác!');
                 }
@@ -303,7 +303,7 @@
                 sessionStorage.setItem('ddvq_room_code', roomCode);
                 sessionStorage.setItem('ddvq_player_auth', password);
                 sessionStorage.setItem('ddvq_contestant_id', contestantId);
-                window.location.href = `player.html?id=${contestantId}&roomid=${encodeURIComponent(roomCode)}&auth=${encodeURIComponent(password)}`;
+                window.location.href = `player${contestantId}.html?id=${contestantId}&roomid=${encodeURIComponent(roomCode)}&auth=${encodeURIComponent(password)}`;
             });
         }
     </script>

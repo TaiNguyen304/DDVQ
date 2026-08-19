@@ -71,6 +71,17 @@ function switchTab(index) {
         }
     });
 
+    const roundMap = { 1: 'XUAT_PHAT', 2: 'RA_KHOI', 3: 'VUOT_SONG', 4: 'VINH_QUANG', 5: 'CAU_HOI_PHU' };
+    if (roundMap[index]) {
+        if (typeof sendToProjector === 'function') {
+            sendToProjector('SET_ACTIVE_ROUND', {
+                round: roundMap[index],
+                scene: index,
+                activeRound: roundMap[index]
+            });
+        }
+    }
+
     if (index === 1 && typeof updateTab1Preview === 'function') {
         updateTab1Preview();
     }
@@ -1463,7 +1474,8 @@ function sendToProjector(type, payload = {}) {
         }
     } catch(e) {}
     try {
-        fetch('/api/action', {
+        const apiUrl = typeof getApiUrl === 'function' ? getApiUrl('/api/action') : '/api/action';
+        fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(message)

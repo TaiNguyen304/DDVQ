@@ -74,16 +74,22 @@ function onLoginPlayerSelectChange() {
 }
 
 function onSelectContestant(val) {
-    if (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID) {
-        contestantId = window.FIXED_CONTESTANT_ID;
-        const sel = document.getElementById('contestant_select');
-        if (sel) sel.value = contestantId;
-        localStorage.setItem('contestant_id', contestantId);
+    const targetId = parseInt(val) || 1;
+    contestantId = targetId;
+    localStorage.setItem('contestant_id', targetId);
+    sessionStorage.setItem('ddvq_contestant_id', targetId);
+
+    const currentPath = window.location.pathname.toLowerCase();
+    const targetFile = `player${targetId}.html`;
+    if (!currentPath.endsWith(targetFile)) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('id', targetId);
+        if (currentRoomCode) urlParams.set('roomid', currentRoomCode);
+        if (currentAuth) urlParams.set('auth', currentAuth);
+        window.location.href = `${targetFile}?${urlParams.toString()}`;
         return;
     }
-    contestantId = parseInt(val) || 1;
-    localStorage.setItem('contestant_id', contestantId);
-    sessionStorage.setItem('ddvq_contestant_id', contestantId);
+
     const loginSel = document.getElementById('login_player_select');
     if (loginSel) loginSel.value = contestantId;
     if (currentRoomCode) {
@@ -391,6 +397,10 @@ function updateSubmissionStatusFromState(state) {
         const tsIdx = state.contestantId || 1;
         if (tsIdx === contestantId) {
             const round = state.round || 'RK';
+            const statusEl = document.getElementById('player_status_text');
+            if (statusEl) {
+                statusEl.innerText = `ĐÃ GỬI (${state.time || ''})`;
+            }
             if (round === 'VS') {
                 const s3Badge = document.getElementById('s3_status_badge');
                 if (s3Badge) {
@@ -404,7 +414,7 @@ function updateSubmissionStatusFromState(state) {
                 const s3Txt = document.getElementById('s3_submitted_text');
                 if (s3Txt) s3Txt.innerText = state.answer ? `"${state.answer}"` : '(Đã bấm chuông)';
                 const s3Tm = document.getElementById('s3_submitted_time');
-                if (s3Tm) s3Tm.innerText = `Thời gian: ${state.time || '00.00'} lúc ${new Date().toLocaleTimeString()}`;
+                if (s3Tm) s3Tm.innerText = `Thời gian: ${state.time || '00.00'}`;
             } else if (round === 'VQ') {
                 const s4Badge = document.getElementById('s4_status_badge');
                 if (s4Badge) {
@@ -414,7 +424,7 @@ function updateSubmissionStatusFromState(state) {
                 const s4Txt = document.getElementById('s4_submitted_text');
                 if (s4Txt) s4Txt.innerText = `"${state.answer || ''}"`;
                 const s4Tm = document.getElementById('s4_submitted_time');
-                if (s4Tm) s4Tm.innerText = `Thời gian: ${state.time || '00.00'} lúc ${new Date().toLocaleTimeString()}`;
+                if (s4Tm) s4Tm.innerText = `Thời gian: ${state.time || '00.00'}`;
             } else if (round === currentS2Round) {
                 const s2Badge = document.getElementById('s2_status_badge');
                 if (s2Badge) {
@@ -424,7 +434,7 @@ function updateSubmissionStatusFromState(state) {
                 const s2Txt = document.getElementById('s2_submitted_text');
                 if (s2Txt) s2Txt.innerText = `"${state.answer || ''}"`;
                 const s2Tm = document.getElementById('s2_submitted_time');
-                if (s2Tm) s2Tm.innerText = `Thời gian: ${state.time || '00.00'} lúc ${new Date().toLocaleTimeString()}`;
+                if (s2Tm) s2Tm.innerText = `Thời gian: ${state.time || '00.00'}`;
             }
         }
         return;
@@ -445,7 +455,7 @@ function updateSubmissionStatusFromState(state) {
         const s2Txt = document.getElementById('s2_submitted_text');
         if (s2Txt) s2Txt.innerText = `"${s2Ans.answer}"`;
         const s2Tm = document.getElementById('s2_submitted_time');
-        if (s2Tm) s2Tm.innerText = `Thời gian: ${s2Ans.time || '00.00'} lúc ${s2Ans.timestamp ? new Date(s2Ans.timestamp).toLocaleTimeString() : ''}`;
+        if (s2Tm) s2Tm.innerText = `Thời gian: ${s2Ans.time || '00.00'}`;
     } else {
         resetS2SubmissionUI();
     }
@@ -462,7 +472,7 @@ function updateSubmissionStatusFromState(state) {
         const s4Txt = document.getElementById('s4_submitted_text');
         if (s4Txt) s4Txt.innerText = `"${s4Ans.answer}"`;
         const s4Tm = document.getElementById('s4_submitted_time');
-        if (s4Tm) s4Tm.innerText = `Thời gian: ${s4Ans.time || '00.00'} lúc ${s4Ans.timestamp ? new Date(s4Ans.timestamp).toLocaleTimeString() : ''}`;
+        if (s4Tm) s4Tm.innerText = `Thời gian: ${s4Ans.time || '00.00'}`;
     } else {
         resetS4SubmissionUI();
     }
@@ -483,7 +493,7 @@ function updateSubmissionStatusFromState(state) {
         const s3Txt = document.getElementById('s3_submitted_text');
         if (s3Txt) s3Txt.innerText = s3Ans.answer ? `"${s3Ans.answer}"` : '(Đã bấm chuông)';
         const s3Tm = document.getElementById('s3_submitted_time');
-        if (s3Tm) s3Tm.innerText = `Thời gian: ${s3Ans.time || '00.00'} lúc ${s3Ans.timestamp ? new Date(s3Ans.timestamp).toLocaleTimeString() : ''}`;
+        if (s3Tm) s3Tm.innerText = `Thời gian: ${s3Ans.time || '00.00'}`;
     } else {
         resetS3SubmissionUI();
     }
@@ -976,6 +986,21 @@ function highlightS3Row(rowNum) {
 
 function handlePlayerMessage(data) {
     if (!data) return;
+
+    // Instant round / scene switching
+    if (data.type === 'SET_ACTIVE_ROUND' || data.type === 'SWITCH_SCENE' || data.type === 'ROUND_CHANGE') {
+        if (data.scene) {
+            autoSwitchScene(data.scene);
+        } else if (data.round === 'XUAT_PHAT') {
+            autoSwitchScene(1);
+        } else if (data.round === 'RA_KHOI') {
+            autoSwitchScene(2);
+        } else if (data.round === 'VUOT_SONG') {
+            autoSwitchScene(3);
+        } else if (data.round === 'VINH_QUANG') {
+            autoSwitchScene(4);
+        }
+    }
 
     // Room code auto-sync
     if (data.roomCode && data.roomCode !== currentRoomCode) {
