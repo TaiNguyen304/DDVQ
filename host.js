@@ -170,11 +170,17 @@ function sendHostHeartbeat() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    const savedRoom = localStorage.getItem('ddvq_room_code');
-    if (savedRoom) {
-        const input = document.getElementById('host_room_code_input');
-        if (input) input.value = savedRoom;
-        onClickJoinHostRoom();
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('roomid') || sessionStorage.getItem('ddvq_room_code') || localStorage.getItem('ddvq_room_code');
+    if (roomParam) {
+        hostRoomCode = roomParam;
+        sessionStorage.setItem('ddvq_room_code', hostRoomCode);
+        localStorage.setItem('ddvq_room_code', hostRoomCode);
+        updateHostBadge(true, hostRoomCode);
+        startHostHeartbeat();
+    } else {
+        updateHostBadge(false);
+        showToast('⚠️ Vui lòng truy cập với tham số ?roomid=<MÃ_PHÒNG> trên URL (Ví dụ: host.html?roomid=123456)');
     }
 });
 

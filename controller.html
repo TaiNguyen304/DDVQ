@@ -548,13 +548,38 @@
     <div class="tab-content active main-container" id="tab0-content">
         <!-- Cột bên trái -->
         <div class="left-col">
-            <!-- Khung Kết nối & Bảo mật Mã phòng -->
+            <!-- Khung Kết nối & Tạo Mã phòng, Mật khẩu Thí sinh -->
             <div class="panel">
-                <div class="conn-top" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #eef2ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #c7d2fe; margin-bottom: 10px;">
-                    <span style="font-weight: bold; color: #1e40af; font-size: 13px;">🔑 MÃ PHÒNG THI:</span>
-                    <input type="text" id="room_code_input" value="DDVQ2026" style="padding: 5px 10px; border: 1.5px solid #3b82f6; border-radius: 4px; font-weight: bold; font-size: 14px; width: 130px; text-transform: uppercase; text-align: center; color: #1e3a8a;" onchange="updateRoomCodeFromController()">
-                    <button class="btn btn-primary" onclick="updateRoomCodeFromController()" style="padding: 5px 12px; font-weight: bold; background: #2563eb;">🔒 Cập nhật mã phòng</button>
-                    <span id="room_code_badge" style="background: #10b981; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px;">Đang hoạt động: DDVQ2026</span>
+                <div class="conn-top" style="display: flex; flex-direction: column; gap: 10px; background: #eef2ff; padding: 12px 14px; border-radius: 8px; border: 1px solid #c7d2fe; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-weight: bold; color: #1e40af; font-size: 13px;">🔑 MÃ PHÒNG (6 CHỮ SỐ):</span>
+                            <input type="text" id="room_code_input" value="123456" maxlength="6" style="padding: 5px 10px; border: 1.5px solid #3b82f6; border-radius: 4px; font-weight: bold; font-size: 15px; width: 100px; text-align: center; color: #1e3a8a;" onchange="saveRoomAuthFromController()">
+                            <button class="btn btn-primary" onclick="generateRandomRoomAndPass()" style="padding: 5px 12px; font-weight: bold; background: #2563eb;">🎲 Tạo mã & MK ngẫu nhiên</button>
+                            <button class="btn" onclick="saveRoomAuthFromController()" style="padding: 5px 12px; font-weight: bold; background: #10b981; color: #fff;">💾 Lưu & Đồng bộ</button>
+                        </div>
+                        <span id="room_code_badge" style="background: #10b981; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px;">Phòng: 123456</span>
+                    </div>
+
+                    <!-- 4 Passwords for 4 contestants -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 3px;">MK TS 1:</div>
+                            <input type="text" id="pass_ts1_input" value="1001" maxlength="4" style="width: 70px; text-align: center; font-weight: bold; font-size: 13px; border: 1px solid #94a3b8; border-radius: 4px; padding: 3px;" onchange="saveRoomAuthFromController()">
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 3px;">MK TS 2:</div>
+                            <input type="text" id="pass_ts2_input" value="1002" maxlength="4" style="width: 70px; text-align: center; font-weight: bold; font-size: 13px; border: 1px solid #94a3b8; border-radius: 4px; padding: 3px;" onchange="saveRoomAuthFromController()">
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 3px;">MK TS 3:</div>
+                            <input type="text" id="pass_ts3_input" value="1003" maxlength="4" style="width: 70px; text-align: center; font-weight: bold; font-size: 13px; border: 1px solid #94a3b8; border-radius: 4px; padding: 3px;" onchange="saveRoomAuthFromController()">
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 3px;">MK TS 4:</div>
+                            <input type="text" id="pass_ts4_input" value="1004" maxlength="4" style="width: 70px; text-align: center; font-weight: bold; font-size: 13px; border: 1px solid #94a3b8; border-radius: 4px; padding: 3px;" onchange="saveRoomAuthFromController()">
+                        </div>
+                    </div>
                 </div>
 
                 <table class="conn-table">

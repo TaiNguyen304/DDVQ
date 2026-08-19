@@ -1,5 +1,6 @@
 let contestantId = (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID) ? window.FIXED_CONTESTANT_ID : (parseInt(localStorage.getItem('contestant_id')) || 1);
-let currentRoomCode = localStorage.getItem('ddvq_room_code') || '';
+let currentRoomCode = '';
+let currentAuth = '';
 let playerContestants = [];
 
 const ONRENDER_BASE_URL_PLAYER = 'https://ddvq.onrender.com';
@@ -23,6 +24,38 @@ function getApiUrl(path) {
         return ONRENDER_BASE_URL_PLAYER + cleanPath;
     }
     return cleanPath;
+}
+
+function checkPlayerAuthentication() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('roomid') || sessionStorage.getItem('ddvq_room_code');
+    const authParam = urlParams.get('auth') || sessionStorage.getItem('ddvq_player_auth');
+    const idParam = urlParams.get('id') || sessionStorage.getItem('ddvq_contestant_id');
+
+    if (idParam && ['1','2','3','4'].includes(idParam)) {
+        if (!window.FIXED_CONTESTANT_ID) {
+            contestantId = parseInt(idParam);
+        }
+    }
+
+    if (!roomParam || !authParam) {
+        // Missing roomid or auth: redirect to playerLogin.html
+        window.location.href = `playerLogin.html?id=${contestantId}${roomParam ? '&roomid=' + encodeURIComponent(roomParam) : ''}`;
+        return false;
+    }
+
+    currentRoomCode = roomParam;
+    currentAuth = authParam;
+    sessionStorage.setItem('ddvq_room_code', currentRoomCode);
+    sessionStorage.setItem('ddvq_player_auth', currentAuth);
+    sessionStorage.setItem('ddvq_contestant_id', contestantId);
+
+    // Hide any login modal if present
+    const modal = document.getElementById('room_code_modal');
+    if (modal) modal.style.display = 'none';
+
+    startHeartbeat();
+    return true;
 }
 
 function onLoginPlayerSelectChange() {
@@ -50,6 +83,7 @@ function onSelectContestant(val) {
     }
     contestantId = parseInt(val) || 1;
     localStorage.setItem('contestant_id', contestantId);
+    sessionStorage.setItem('ddvq_contestant_id', contestantId);
     const loginSel = document.getElementById('login_player_select');
     if (loginSel) loginSel.value = contestantId;
     if (currentRoomCode) {
@@ -58,64 +92,7 @@ function onSelectContestant(val) {
 }
 
 function onClickJoinRoom() {
-    const sel = document.getElementById('login_player_select');
-    const input = document.getElementById('login_room_code_input');
-    const errorBox = document.getElementById('login_error_msg');
-
-    if (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID) {
-        contestantId = window.FIXED_CONTESTANT_ID;
-    } else if (sel) {
-        contestantId = parseInt(sel.value) || 1;
-    }
-    const roomCode = (input ? input.value : '').trim().toUpperCase();
-
-    if (!roomCode) {
-        if (errorBox) {
-            errorBox.innerText = 'Vui lòng nhập Mã Phòng!';
-            errorBox.style.display = 'block';
-        }
-        return;
-    }
-
-    const myName = playerContestants[contestantId - 1]?.name || `Thí sinh ${contestantId}`;
-
-    fetch(getApiUrl('/api/action'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            type: 'CLIENT_JOIN',
-            role: `ts${contestantId}`,
-            contestantId: contestantId,
-            roomCode: roomCode,
-            name: myName
-        })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            currentRoomCode = roomCode;
-            localStorage.setItem('ddvq_room_code', roomCode);
-            localStorage.setItem('contestant_id', contestantId);
-            const modal = document.getElementById('room_code_modal');
-            if (modal) modal.style.display = 'none';
-            if (errorBox) errorBox.style.display = 'none';
-            showToast(`Vào phòng thi thành công! (Mã phòng: ${roomCode})`);
-            startHeartbeat();
-        } else {
-            if (errorBox) {
-                errorBox.innerText = data.error || 'Mã phòng không chính xác!';
-                errorBox.style.display = 'block';
-            }
-        }
-    })
-    .catch(() => {
-        currentRoomCode = roomCode;
-        localStorage.setItem('ddvq_room_code', roomCode);
-        const modal = document.getElementById('room_code_modal');
-        if (modal) modal.style.display = 'none';
-        showToast(`Đã tham gia phòng (Mã: ${roomCode})`);
-        startHeartbeat();
-    });
+    checkPlayerAuthentication();
 }
 
 let heartbeatInterval = null;
@@ -179,27 +156,8 @@ window.addEventListener('DOMContentLoaded', () => {
             sel.value = contestantId;
             sel.disabled = true;
         }
-        const loginSel = document.getElementById('login_player_select');
-        if (loginSel) {
-            loginSel.value = contestantId;
-            loginSel.disabled = true;
-        }
-    } else {
-        const savedId = localStorage.getItem('contestant_id');
-        if (savedId) {
-            contestantId = parseInt(savedId);
-            const sel = document.getElementById('contestant_select');
-            if (sel) sel.value = contestantId;
-            const loginSel = document.getElementById('login_player_select');
-            if (loginSel) loginSel.value = contestantId;
-        }
     }
-    const savedRoom = localStorage.getItem('ddvq_room_code');
-    if (savedRoom) {
-        const input = document.getElementById('login_room_code_input');
-        if (input) input.value = savedRoom;
-        onClickJoinRoom();
-    }
+    checkPlayerAuthentication();
 });
 
 function updatePlayerContestants(contestants) {
@@ -590,6 +548,8 @@ function submitScene2Answer() {
     const ans = s2Input ? s2Input.value.trim() : "";
     if (!ans) return;
 
+    if (s2Input) s2Input.value = "";
+
     let timeStr = "00.00";
     if (s2TimerStartTime) {
         let elapsed = (Date.now() - s2TimerStartTime) / 1000;
@@ -669,6 +629,8 @@ function submitScene3Answer(isVongThi = false) {
         const ans = s3Input ? s3Input.value.trim() : "";
         if (!ans) return;
 
+        if (s3Input) s3Input.value = "";
+
         let timeStr = "00.00";
         if (s3TimerStartTime) {
             let elapsed = (Date.now() - s3TimerStartTime) / 1000;
@@ -734,6 +696,7 @@ function submitScene3Answer(isVongThi = false) {
         // Vòng thi (Chướng ngại vật) answer: always allowed, calculate elapsed time since round started
         const ans = s3Input ? s3Input.value.trim() : "";
         const finalAnswer = ans;
+        if (s3Input) s3Input.value = "";
 
         let timeStr = "00.00";
         if (s3RoundStartTime) {
@@ -858,6 +821,8 @@ function submitScene4Answer() {
     }
     const ans = s4Input ? s4Input.value.trim() : "";
     if (!ans) return;
+
+    if (s4Input) s4Input.value = "";
 
     let timeStr = "00.00";
     if (s4TimerStartTime) {
