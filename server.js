@@ -73,13 +73,7 @@ app.use(express.static(__dirname));
 let sseClients = [];
 let latestAction = null;
 let currentServerState = {
-  roomCode: '123456',
-  passwords: {
-    ts1: '1111',
-    ts2: '2222',
-    ts3: '3333',
-    ts4: '4444'
-  },
+  roomCode: 'DDVQ2026',
   connectedClients: {
     ts1: { connected: false, name: 'Thí sinh 1', lastSeen: 0 },
     ts2: { connected: false, name: 'Thí sinh 2', lastSeen: 0 },
@@ -168,46 +162,16 @@ app.post('/api/action', (req, res) => {
       });
     }
 
-    if (actionData.type === 'VERIFY_PLAYER_AUTH') {
-      const isRoomMatch = (actionData.roomCode || '').toUpperCase() === (currentServerState.roomCode || '').toUpperCase();
-      if (!isRoomMatch) {
-        return res.json({ success: false, error: 'Mã phòng không chính xác!' });
-      }
-      const cId = parseInt(actionData.contestantId) || 1;
-      const expectedPass = currentServerState.passwords[`ts${cId}`] || '0000';
-      const userPass = (actionData.password || '').toString().trim();
-      if (userPass !== expectedPass) {
-        return res.json({ success: false, error: 'Mật khẩu thí sinh không chính xác!' });
-      }
-      return res.json({
-        success: true,
-        roomCode: currentServerState.roomCode,
-        contestantId: cId,
-        auth: expectedPass
-      });
-    }
-
-    if (actionData.type === 'SET_ROOM_AUTH' || actionData.type === 'SET_ROOM_CODE') {
+    if (actionData.type === 'SET_ROOM_CODE') {
       if (actionData.roomCode) {
         currentServerState.roomCode = actionData.roomCode.toUpperCase();
+        broadcastAction({
+          type: 'ROOM_CODE_UPDATED',
+          roomCode: currentServerState.roomCode,
+          timestamp: Date.now()
+        });
       }
-      if (actionData.passwords && typeof actionData.passwords === 'object') {
-        currentServerState.passwords = {
-          ...currentServerState.passwords,
-          ...actionData.passwords
-        };
-      }
-      broadcastAction({
-        type: 'ROOM_AUTH_UPDATED',
-        roomCode: currentServerState.roomCode,
-        passwords: currentServerState.passwords,
-        timestamp: Date.now()
-      });
-      return res.json({
-        success: true,
-        roomCode: currentServerState.roomCode,
-        passwords: currentServerState.passwords
-      });
+      return res.json({ success: true, roomCode: currentServerState.roomCode });
     }
 
     // Client connection / heartbeat registration
@@ -298,10 +262,7 @@ app.post('/api/action', (req, res) => {
       };
     }
 
-    if (actionData.type === 'SET_ACTIVE_ROUND' || actionData.type === 'SWITCH_SCENE') {
-      if (actionData.round) currentServerState.activeRound = actionData.round;
-      if (actionData.scene) currentServerState.activeScene = actionData.scene;
-    } else if (actionData.type.startsWith('XUAT_PHAT_')) currentServerState.activeRound = 'XUAT_PHAT';
+    if (actionData.type.startsWith('XUAT_PHAT_')) currentServerState.activeRound = 'XUAT_PHAT';
     else if (actionData.type.startsWith('RA_KHOI_')) currentServerState.activeRound = 'RA_KHOI';
     else if (actionData.type.startsWith('VUOT_SONG_')) currentServerState.activeRound = 'VUOT_SONG';
     else if (actionData.type.startsWith('VINH_QUANG_')) currentServerState.activeRound = 'VINH_QUANG';
@@ -392,10 +353,6 @@ app.get(['/graphic', '/graphic.html'], (req, res) => {
 
 app.get(['/host', '/host.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'host.html'));
-});
-
-app.get(['/playerLogin', '/playerLogin.html', '/playerlogin', '/playerlogin.html'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'playerLogin.html'));
 });
 
 app.get(['/player', '/player.html'], (req, res) => {

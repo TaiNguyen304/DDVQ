@@ -71,17 +71,6 @@ function switchTab(index) {
         }
     });
 
-    const roundMap = { 1: 'XUAT_PHAT', 2: 'RA_KHOI', 3: 'VUOT_SONG', 4: 'VINH_QUANG', 5: 'CAU_HOI_PHU' };
-    if (roundMap[index]) {
-        if (typeof sendToProjector === 'function') {
-            sendToProjector('SET_ACTIVE_ROUND', {
-                round: roundMap[index],
-                scene: index,
-                activeRound: roundMap[index]
-            });
-        }
-    }
-
     if (index === 1 && typeof updateTab1Preview === 'function') {
         updateTab1Preview();
     }
@@ -1119,169 +1108,31 @@ function updateClientStatusBadges(connectedClients) {
     }
 }
 
-function generateRandomRoomAndPass() {
-    // 6-digit random room code
-    const randomRoom = Math.floor(100000 + Math.random() * 900000).toString();
-    const roomInput = document.getElementById('room_code_input');
-    if (roomInput) roomInput.value = randomRoom;
-
-    // 4 4-digit random passwords for 4 contestants
-    for (let i = 1; i <= 4; i++) {
-        const randomPass = Math.floor(1000 + Math.random() * 9000).toString();
-        const passInput = document.getElementById(`pass_ts${i}_input`);
-        if (passInput) passInput.value = randomPass;
-    }
-
-    saveRoomAuthFromController();
-}
-
-function saveRoomAuthFromController() {
-    const roomInput = document.getElementById('room_code_input');
-    const roomCode = roomInput ? (roomInput.value.trim() || '123456') : '123456';
-    
-    const passwords = {
-        ts1: (document.getElementById('pass_ts1_input')?.value || '1001').trim(),
-        ts2: (document.getElementById('pass_ts2_input')?.value || '1002').trim(),
-        ts3: (document.getElementById('pass_ts3_input')?.value || '1003').trim(),
-        ts4: (document.getElementById('pass_ts4_input')?.value || '1004').trim()
-    };
+function updateRoomCodeFromController() {
+    const input = document.getElementById('room_code_input');
+    if (!input) return;
+    const newCode = input.value.trim().toUpperCase() || 'DDVQ2026';
+    input.value = newCode;
 
     fetch(getApiUrl('/api/action'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            type: 'SET_ROOM_AUTH',
-            roomCode: roomCode,
-            passwords: passwords
+            type: 'SET_ROOM_CODE',
+            roomCode: newCode
         })
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
             const badge = document.getElementById('room_code_badge');
-            if (badge) badge.innerText = `Phòng: ${roomCode}`;
-            showToast(`Đã lưu & đồng bộ Mã Phòng (${roomCode}) và Mật khẩu 4 thí sinh!`);
+            if (badge) badge.innerText = `Đang hoạt động: ${newCode}`;
+            if (typeof showToast === 'function') showToast(`Đã cập nhật Mã Phòng mới: ${newCode}`);
         }
     })
     .catch(err => {
-        console.error("Room auth update error:", err);
-        const badge = document.getElementById('room_code_badge');
-        if (badge) badge.innerText = `Phòng: ${roomCode}`;
-        showToast(`Đã lưu cục bộ Mã Phòng: ${roomCode}`);
+        console.error("Room code update error:", err);
     });
-}
-
-function updateRoomCodeFromController() {
-    saveRoomAuthFromController();
-}
-
-// Custom Modal Popup for Editing Contestant Score (must be divisible by 5)
-let activeScoreEditTsIdx = null;
-
-function promptScore(idx) {
-    if (!gameData.contestants || !gameData.contestants[idx - 1]) return;
-    activeScoreEditTsIdx = idx;
-    const currentScore = gameData.contestants[idx - 1].score || 0;
-    const contestantName = gameData.contestants[idx - 1].name || `Thí sinh ${idx}`;
-
-    let modal = document.getElementById('score_edit_custom_modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'score_edit_custom_modal';
-        modal.style.position = 'fixed';
-        modal.style.inset = '0';
-        modal.style.background = 'rgba(15, 23, 42, 0.7)';
-        modal.style.backdropFilter = 'blur(4px)';
-        modal.style.zIndex = '99999';
-        modal.style.display = 'flex';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
-        modal.style.padding = '16px';
-        modal.innerHTML = `
-            <div style="background: #ffffff; border-radius: 12px; padding: 24px; width: 100%; max-width: 380px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); border: 2px solid #3b82f6; text-align: center; color: #1e293b; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                <div style="font-size: 28px; margin-bottom: 6px;">✏️</div>
-                <h3 id="score_modal_title" style="font-size: 17px; font-weight: 800; color: #1e40af; margin-bottom: 6px; text-transform: uppercase;">SỬA ĐIỂM THÍ SINH</h3>
-                <p id="score_modal_desc" style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Nhập điểm số mới (phải là số chia hết cho 5)</p>
-                
-                <div style="margin-bottom: 16px;">
-                    <input type="number" id="score_modal_input" step="5" style="width: 100%; padding: 12px; font-size: 20px; font-weight: bold; text-align: center; border: 2px solid #cbd5e1; border-radius: 8px; color: #0f172a; outline: none;" onkeyup="if(event.key==='Enter') saveCustomScoreModal()">
-                </div>
-
-                <div id="score_modal_error" style="color: #ef4444; font-size: 12px; font-weight: bold; margin-bottom: 12px; display: none;"></div>
-
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button onclick="saveCustomScoreModal()" style="flex: 1; padding: 10px 16px; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">💾 Lưu</button>
-                    <button onclick="closeCustomScoreModal()" style="flex: 1; padding: 10px 16px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Đóng</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-
-    const titleEl = document.getElementById('score_modal_title');
-    if (titleEl) titleEl.innerText = `SỬA ĐIỂM: ${contestantName.toUpperCase()}`;
-    const inputEl = document.getElementById('score_modal_input');
-    if (inputEl) {
-        inputEl.value = currentScore;
-        setTimeout(() => inputEl.focus(), 100);
-    }
-    const errEl = document.getElementById('score_modal_error');
-    if (errEl) errEl.style.display = 'none';
-
-    modal.style.display = 'flex';
-}
-
-function closeCustomScoreModal() {
-    const modal = document.getElementById('score_edit_custom_modal');
-    if (modal) modal.style.display = 'none';
-    activeScoreEditTsIdx = null;
-}
-
-function saveCustomScoreModal() {
-    if (!activeScoreEditTsIdx || !gameData.contestants || !gameData.contestants[activeScoreEditTsIdx - 1]) return;
-    const inputEl = document.getElementById('score_modal_input');
-    const errEl = document.getElementById('score_modal_error');
-    const val = parseInt(inputEl ? inputEl.value : "0");
-
-    if (isNaN(val)) {
-        if (errEl) {
-            errEl.innerText = 'Vui lòng nhập một số điểm hợp lệ!';
-            errEl.style.display = 'block';
-        }
-        return;
-    }
-
-    if (val % 5 !== 0) {
-        if (errEl) {
-            errEl.innerText = 'Điểm số bắt buộc phải là một số chia hết cho 5 (VD: 0, 5, 10, 15, 20...)!';
-            errEl.style.display = 'block';
-        }
-        return;
-    }
-
-    const idx = activeScoreEditTsIdx;
-    gameData.contestants[idx - 1].score = val;
-
-    const disps = [
-        document.getElementById(`ts${idx}_score_disp`),
-        document.getElementById(`ts${idx}_score_disp_rk`),
-        document.getElementById(`ts${idx}_score_disp_vs`),
-        document.getElementById(`ts${idx}_score_disp_vq`)
-    ];
-    disps.forEach(disp => { if (disp) disp.innerText = val; });
-
-    saveAllData();
-    if (typeof updateTab1Preview === 'function') updateTab1Preview();
-
-    sendToProjector('UPDATE_SCORES', { contestants: gameData.contestants });
-    sendToProjector('XUAT_PHAT_SELECT_CONTESTANT', {
-        name: gameData.contestants[idx - 1].name,
-        score: gameData.contestants[idx - 1].score
-    });
-
-    const cName = gameData.contestants[idx - 1].name || `Thí sinh ${idx}`;
-    showToast(`Đã cập nhật điểm ${cName}: ${val}`);
-    closeCustomScoreModal();
 }
 
 let currentControllerAudio = null;
@@ -1474,8 +1325,7 @@ function sendToProjector(type, payload = {}) {
         }
     } catch(e) {}
     try {
-        const apiUrl = typeof getApiUrl === 'function' ? getApiUrl('/api/action') : '/api/action';
-        fetch(apiUrl, {
+        fetch('/api/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(message)
@@ -1509,6 +1359,27 @@ function updateContestantName(idx, val) {
         timestamp: Date.now()
     };
     sendToProjector('UPDATE_CONTESTANTS', payload);
+}
+
+function promptScore(idx) {
+    if (!gameData.contestants || !gameData.contestants[idx - 1]) return;
+    const current = gameData.contestants[idx - 1]?.score || 0;
+    // Provide quick modal-free score adjuster: increment by 10
+    const newScore = current + 10;
+    gameData.contestants[idx - 1].score = newScore;
+    const disps = [
+        document.getElementById(`ts${idx}_score_disp`),
+        document.getElementById(`ts${idx}_score_disp_rk`),
+        document.getElementById(`ts${idx}_score_disp_vq`)
+    ];
+    disps.forEach(disp => { if (disp) disp.innerText = gameData.contestants[idx - 1].score; });
+    saveAllData();
+    if (typeof updateTab1Preview === 'function') updateTab1Preview();
+    sendToProjector('XUAT_PHAT_SELECT_CONTESTANT', {
+        name: gameData.contestants[idx - 1].name,
+        score: gameData.contestants[idx - 1].score
+    });
+    showToast(`Đã tăng điểm Thí sinh ${idx} lên: ${newScore}`);
 }
 
 function triggerFilePicker(targetInputId, acceptType) {
