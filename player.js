@@ -217,10 +217,9 @@ try {
     if (saved) updatePlayerContestants(JSON.parse(saved));
 } catch(e) {}
 
-let playerChannel = null;
 try {
-    if (typeof BroadcastChannel !== 'undefined') {
-        playerChannel = new BroadcastChannel('ddvq_game_channel');
+    if (!playerChannel && typeof BroadcastChannel !== 'undefined') {
+        playerChannel = new BroadcastChannel(`ddvq_game_channel_${currentRoomCode.toLowerCase()}`);
     }
 } catch (e) {
     console.warn("BroadcastChannel restricted in player:", e);
