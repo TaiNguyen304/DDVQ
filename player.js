@@ -1,5 +1,22 @@
-let contestantId = (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID) ? window.FIXED_CONTESTANT_ID : (parseInt(localStorage.getItem('contestant_id')) || 1);
-let currentRoomCode = localStorage.getItem('ddvq_room_code') || '';
+// Check for required URL parameters: ?roomid=... & ?auth=...
+(function enforcePlayerAuthentication() {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomidParam = urlParams.get('roomid') || urlParams.get('roomCode') || urlParams.get('room');
+    const authParam = urlParams.get('auth') || urlParams.get('password') || urlParams.get('pass');
+    const idParam = urlParams.get('id') || (window.FIXED_CONTESTANT_ID ? String(window.FIXED_CONTESTANT_ID) : '1');
+
+    if (!roomidParam || !authParam) {
+        window.location.replace(`playerLogin.html?id=${encodeURIComponent(idParam)}`);
+        return;
+    }
+    localStorage.setItem('ddvq_room_code', roomidParam);
+    localStorage.setItem('ddvq_player_auth', authParam);
+    localStorage.setItem('contestant_id', idParam);
+})();
+
+let contestantId = (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID) ? window.FIXED_CONTESTANT_ID : (parseInt(new URLSearchParams(window.location.search).get('id')) || parseInt(localStorage.getItem('contestant_id')) || 1);
+let currentRoomCode = new URLSearchParams(window.location.search).get('roomid') || localStorage.getItem('ddvq_room_code') || '';
 let playerContestants = [];
 
 const ONRENDER_BASE_URL_PLAYER = 'https://ddvq.onrender.com';
@@ -590,6 +607,9 @@ function submitScene2Answer() {
     const ans = s2Input ? s2Input.value.trim() : "";
     if (!ans) return;
 
+    // Clear input field on submit
+    if (s2Input) s2Input.value = "";
+
     let timeStr = "00.00";
     if (s2TimerStartTime) {
         let elapsed = (Date.now() - s2TimerStartTime) / 1000;
@@ -669,6 +689,9 @@ function submitScene3Answer(isVongThi = false) {
         const ans = s3Input ? s3Input.value.trim() : "";
         if (!ans) return;
 
+        // Clear input field on submit
+        if (s3Input) s3Input.value = "";
+
         let timeStr = "00.00";
         if (s3TimerStartTime) {
             let elapsed = (Date.now() - s3TimerStartTime) / 1000;
@@ -734,6 +757,9 @@ function submitScene3Answer(isVongThi = false) {
         // Vòng thi (Chướng ngại vật) answer: always allowed, calculate elapsed time since round started
         const ans = s3Input ? s3Input.value.trim() : "";
         const finalAnswer = ans;
+
+        // Clear input field on submit
+        if (s3Input) s3Input.value = "";
 
         let timeStr = "00.00";
         if (s3RoundStartTime) {
@@ -858,6 +884,9 @@ function submitScene4Answer() {
     }
     const ans = s4Input ? s4Input.value.trim() : "";
     if (!ans) return;
+
+    // Clear input field on submit
+    if (s4Input) s4Input.value = "";
 
     let timeStr = "00.00";
     if (s4TimerStartTime) {
@@ -1379,5 +1408,45 @@ window.addEventListener('keydown', function(e) {
             e.preventDefault();
             triggerRandomDeFromPlayer();
         }
+    }
+});
+
+// Setup input listeners on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Hide legacy modal if present
+    const legacyModal = document.getElementById('room_code_modal');
+    if (legacyModal) legacyModal.style.display = 'none';
+
+    // S2 Input Enter Handler
+    const s2Input = document.getElementById('s2_answer_input');
+    if (s2Input) {
+        s2Input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitScene2Answer();
+            }
+        });
+    }
+
+    // S3 Input Enter Handler
+    const s3Input = document.getElementById('s3_answer_input');
+    if (s3Input) {
+        s3Input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitScene3Answer(false);
+            }
+        });
+    }
+
+    // S4 Input Enter Handler
+    const s4Input = document.getElementById('s4_answer_input');
+    if (s4Input) {
+        s4Input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitScene4Answer();
+            }
+        });
     }
 });
