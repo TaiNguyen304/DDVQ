@@ -775,6 +775,12 @@ setInterval(() => {
 function handleProjectorMessage(data) {
     if (data.type === 'SWITCH_VIEW') {
         if (data.viewNum) switchView(data.viewNum);
+    } else if (data.type === 'SWITCH_ROUND') {
+        if (data.viewNum) switchView(data.viewNum);
+        else if (data.activeRound === 'XUAT_PHAT' || data.round === 'XUAT_PHAT') switchView(1);
+        else if (data.activeRound === 'RA_KHOI' || data.round === 'RA_KHOI') switchView(2);
+        else if (data.activeRound === 'VUOT_SONG' || data.round === 'VUOT_SONG') switchView(3);
+        else if (data.activeRound === 'VINH_QUANG' || data.round === 'VINH_QUANG') switchView(6);
     } else if (data.type === 'XUAT_PHAT_INTRO') {
         switchView(1);
         stopAllAudio1();

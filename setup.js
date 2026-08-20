@@ -71,14 +71,17 @@ function switchTab(index) {
         }
     });
 
-    if (index === 1 && typeof updateTab1Preview === 'function') {
-        updateTab1Preview();
-    }
-    if (index === 2 && typeof selectRKQuestion === 'function') {
-        selectRKQuestion(typeof currentRKQuestion !== 'undefined' ? currentRKQuestion : 1);
-    }
-    if (index === 3) {
+    if (index === 1) {
+        if (typeof updateTab1Preview === 'function') updateTab1Preview();
+        sendToProjector('SWITCH_ROUND', { activeRound: 'XUAT_PHAT', round: 'XUAT_PHAT', viewNum: 1 });
+    } else if (index === 2) {
+        if (typeof selectRKQuestion === 'function') selectRKQuestion(typeof currentRKQuestion !== 'undefined' ? currentRKQuestion : 1);
+        sendToProjector('SWITCH_ROUND', { activeRound: 'RA_KHOI', round: 'RA_KHOI', viewNum: 2 });
+    } else if (index === 3) {
         if (typeof updateVuotSongState === 'function') updateVuotSongState();
+        sendToProjector('SWITCH_ROUND', { activeRound: 'VUOT_SONG', round: 'VUOT_SONG', viewNum: 3 });
+    } else if (index === 4) {
+        sendToProjector('SWITCH_ROUND', { activeRound: 'VINH_QUANG', round: 'VINH_QUANG', viewNum: 6 });
     }
 }
 

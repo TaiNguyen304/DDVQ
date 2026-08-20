@@ -1052,21 +1052,22 @@ function handlePlayerMessage(data) {
         }
     }
 
-    // Full State Sync or Update State
-    if (data.type === 'FULL_STATE_SYNC' || data.type === 'UPDATE_STATE' || data.type === 'UPDATE_SCORES') {
+    // Full State Sync, Update State, or Switch Round
+    if (data.type === 'FULL_STATE_SYNC' || data.type === 'UPDATE_STATE' || data.type === 'UPDATE_SCORES' || data.type === 'SWITCH_ROUND') {
         if (data.vuotSong) {
             renderPlayerVSGrid(data.vuotSong);
         }
-        if (data.activeRound === 'XUAT_PHAT') {
+        const currentActiveRound = data.activeRound || data.round;
+        if (currentActiveRound === 'XUAT_PHAT' || currentActiveRound === '1') {
             autoSwitchScene(1);
             s3RoundStartTime = 0;
             localStorage.removeItem('s3_round_start_time');
-        } else if (data.activeRound === 'RA_KHOI') {
+        } else if (currentActiveRound === 'RA_KHOI' || currentActiveRound === '2') {
             autoSwitchScene(2);
             currentS2Round = 'RK';
             s3RoundStartTime = 0;
             localStorage.removeItem('s3_round_start_time');
-        } else if (data.activeRound === 'VUOT_SONG') {
+        } else if (currentActiveRound === 'VUOT_SONG' || currentActiveRound === '3') {
             autoSwitchScene(3);
             if (!s3RoundStartTime) {
                 s3RoundStartTime = Date.now();
@@ -1079,7 +1080,7 @@ function handlePlayerMessage(data) {
                     s3Input.placeholder = "Nhập đáp án Chướng ngại vật (Ấn nút màu xanh lá)...";
                 }
             }
-        } else if (data.activeRound === 'VINH_QUANG') {
+        } else if (currentActiveRound === 'VINH_QUANG' || currentActiveRound === '4') {
             autoSwitchScene(4);
             currentS2Round = 'VQ';
             s3RoundStartTime = 0;
