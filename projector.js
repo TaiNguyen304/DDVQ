@@ -621,12 +621,15 @@ function startCountdown7(duration = 25) {
 
 /* CONTROLLER - PROJECTOR CONNECTION */
 let projectorChannel = null;
+const projectorRoomCode = (new URLSearchParams(window.location.search).get('roomid') || localStorage.getItem('ddvq_room_code') || 'DDVQ2026').trim().toUpperCase();
+
 try {
     if (typeof BroadcastChannel !== 'undefined') {
-        projectorChannel = new BroadcastChannel('ddvq_game_channel');
+        projectorChannel = new BroadcastChannel(`ddvq_game_channel_${projectorRoomCode.toLowerCase()}`);
         projectorChannel.onmessage = function(event) {
             const data = event.data;
             if (!data || !data.type) return;
+            if (data.roomCode && data.roomCode.toUpperCase() !== projectorRoomCode) return;
             handleProjectorMessage(data);
         };
     }
@@ -637,15 +640,14 @@ try {
 // Server-Sent Events (SSE) for cross-device synchronization (Mobile, PC, Projector)
 if (typeof EventSource !== 'undefined') {
     try {
-        const ssePath = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/events') : '/api/events';
+        const ssePath = typeof window.getApiUrl === 'function' ? window.getApiUrl(`/api/events?roomid=${encodeURIComponent(projectorRoomCode)}`) : `/api/events?roomid=${encodeURIComponent(projectorRoomCode)}`;
         const projSse = new EventSource(ssePath);
         projSse.onmessage = function(event) {
             try {
                 const data = JSON.parse(event.data);
                 if (data) {
-                    if (data.roomCode && data.roomCode !== localStorage.getItem('ddvq_room_code')) {
-                        console.log(`[Sync] Projector room code auto-syncing to: ${data.roomCode}`);
-                        localStorage.setItem('ddvq_room_code', data.roomCode);
+                    if (data.roomCode && data.roomCode.toUpperCase() !== projectorRoomCode) {
+                        return; // Ignore messages intended for another room
                     }
                     if (data.type && data.type !== 'PING' && data.type !== 'PROJECTOR_READY') {
                         if (data.id && data.id !== lastProcessedActionId) {

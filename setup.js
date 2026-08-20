@@ -1272,9 +1272,11 @@ function stopSoundController() {
     if (typeof showToast === 'function') showToast('Đã dừng âm thanh!');
 }
 
+let currentRoom = (localStorage.getItem('ddvq_room_code') || 'DDVQ2026').trim().toUpperCase();
+
 try {
     if (typeof BroadcastChannel !== 'undefined') {
-        controllerChannel = new BroadcastChannel('ddvq_game_channel');
+        controllerChannel = new BroadcastChannel(`ddvq_game_channel_${currentRoom.toLowerCase()}`);
         controllerChannel.onmessage = function(event) {
             if (!event.data) return;
             if (event.data.type === 'PROJECTOR_READY' || event.data.type === 'PROJECTOR_PONG') {
@@ -1302,7 +1304,8 @@ try {
 // Server-Sent Events (SSE) for cross-device real-time sync (Mobile, PC, Projector)
 if (typeof EventSource !== 'undefined') {
     try {
-        const sseSource = new EventSource(getApiUrl('/api/events'));
+        const sseUrl = getApiUrl('/api/events' + (currentRoom ? `?roomid=${encodeURIComponent(currentRoom)}` : ''));
+        const sseSource = new EventSource(sseUrl);
         sseSource.onmessage = function(event) {
             try {
                 const data = JSON.parse(event.data);
@@ -1414,7 +1417,8 @@ function updateProjectorStatus(isConnected) {
 }
 
 function sendToProjector(type, payload = {}) {
-    const message = { type, ...payload, timestamp: Date.now(), id: Math.random().toString(36).substring(2, 9) };
+    const roomCode = (localStorage.getItem('ddvq_room_code') || 'DDVQ2026').trim().toUpperCase();
+    const message = { type, roomCode, ...payload, timestamp: Date.now(), id: Math.random().toString(36).substring(2, 9) };
     if (controllerChannel) {
         try {
             controllerChannel.postMessage(message);
@@ -1423,6 +1427,7 @@ function sendToProjector(type, payload = {}) {
         }
     }
     try {
+        localStorage.setItem(`ddvq_latest_action_${roomCode}`, JSON.stringify(message));
         localStorage.setItem('ddvq_latest_action', JSON.stringify(message));
     } catch(e) {}
     try {
@@ -1433,7 +1438,7 @@ function sendToProjector(type, payload = {}) {
         }
     } catch(e) {}
     try {
-        fetch('/api/action', {
+        fetch(getApiUrl('/api/action'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(message)

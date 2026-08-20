@@ -16,8 +16,14 @@
 })();
 
 let contestantId = (typeof window !== 'undefined' && window.FIXED_CONTESTANT_ID) ? window.FIXED_CONTESTANT_ID : (parseInt(new URLSearchParams(window.location.search).get('id')) || parseInt(localStorage.getItem('contestant_id')) || 1);
-let currentRoomCode = new URLSearchParams(window.location.search).get('roomid') || localStorage.getItem('ddvq_room_code') || '';
+let currentRoomCode = (new URLSearchParams(window.location.search).get('roomid') || localStorage.getItem('ddvq_room_code') || 'DDVQ2026').trim().toUpperCase();
 let playerContestants = [];
+let playerChannel = null;
+try {
+    if (typeof BroadcastChannel !== 'undefined') {
+        playerChannel = new BroadcastChannel(`ddvq_game_channel_${currentRoomCode.toLowerCase()}`);
+    }
+} catch(e) {}
 
 const ONRENDER_BASE_URL_PLAYER = 'https://ddvq.onrender.com';
 
@@ -631,6 +637,7 @@ function submitScene2Answer() {
     const submitPayload = {
         id: Math.random().toString(36).substring(2, 9),
         type: 'PLAYER_SUBMIT_ANSWER',
+        roomCode: currentRoomCode || 'DDVQ2026',
         contestantId: contestantId,
         round: currentS2Round,
         answer: ans,
@@ -713,6 +720,7 @@ function submitScene3Answer(isVongThi = false) {
         const submitPayload = {
             id: Math.random().toString(36).substring(2, 9),
             type: 'PLAYER_SUBMIT_ANSWER',
+            roomCode: currentRoomCode || 'DDVQ2026',
             contestantId: contestantId,
             round: 'VS',
             isVongThi: false,
@@ -782,6 +790,7 @@ function submitScene3Answer(isVongThi = false) {
         const submitPayload = {
             id: Math.random().toString(36).substring(2, 9),
             type: 'PLAYER_SUBMIT_ANSWER',
+            roomCode: currentRoomCode || 'DDVQ2026',
             contestantId: contestantId,
             round: 'VS',
             isVongThi: true,
@@ -909,6 +918,7 @@ function submitScene4Answer() {
     const submitPayload = {
         id: Math.random().toString(36).substring(2, 9),
         type: 'PLAYER_SUBMIT_ANSWER',
+        roomCode: currentRoomCode || 'DDVQ2026',
         contestantId: contestantId,
         round: 'VQ',
         answer: ans,
@@ -1317,11 +1327,14 @@ renderPlayerVSGrid();
 
 // 1. SSE Real-time Connection
 if (typeof EventSource !== 'undefined') {
-    const ssePath = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/events') : '/api/events';
+    const ssePath = typeof window.getApiUrl === 'function' ? window.getApiUrl(`/api/events?roomid=${encodeURIComponent(currentRoomCode)}`) : `/api/events?roomid=${encodeURIComponent(currentRoomCode)}`;
     const sse = new EventSource(ssePath);
     sse.onmessage = function(e) {
         try {
             const data = JSON.parse(e.data);
+            if (data && data.roomCode && data.roomCode.toUpperCase() !== currentRoomCode) {
+                return; // Ignore actions for another room
+            }
             handlePlayerMessage(data);
         } catch(err) {}
     };
@@ -1334,6 +1347,7 @@ if (typeof EventSource !== 'undefined') {
 try {
     if (playerChannel) {
         playerChannel.onmessage = function(e) {
+            if (e.data && e.data.roomCode && e.data.roomCode.toUpperCase() !== currentRoomCode) return;
             handlePlayerMessage(e.data);
         };
     }
@@ -1343,17 +1357,22 @@ try {
 window.addEventListener('storage', function(e) {
     if (e.key === 'ddvq_latest_action' && e.newValue) {
         try {
-            handlePlayerMessage(JSON.parse(e.newValue));
+            const parsed = JSON.parse(e.newValue);
+            if (parsed && parsed.roomCode && parsed.roomCode.toUpperCase() !== currentRoomCode) return;
+            handlePlayerMessage(parsed);
         } catch(err) {}
     }
 });
 
 // 4. Initial & Interval State Polling Fallback
 function fetchCurrentState() {
-    const apiPath = typeof window.getApiUrl === 'function' ? window.getApiUrl('/api/state') : '/api/state';
+    const apiPath = typeof window.getApiUrl === 'function' ? window.getApiUrl(`/api/state?roomid=${encodeURIComponent(currentRoomCode)}`) : `/api/state?roomid=${encodeURIComponent(currentRoomCode)}`;
     fetch(apiPath)
         .then(res => res.json())
-        .then(data => handlePlayerMessage(data))
+        .then(data => {
+            if (data && data.roomCode && data.roomCode.toUpperCase() !== currentRoomCode) return;
+            handlePlayerMessage(data);
+        })
         .catch(() => {});
 }
 

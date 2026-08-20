@@ -125,13 +125,14 @@ function getRoomState(roomCode) {
 getRoomState('DDVQ2026');
 
 function broadcastAction(actionData, roomCode) {
-  const targetRoom = (roomCode || actionData?.roomCode || '').toUpperCase();
+  const targetRoom = (roomCode || actionData?.roomCode || '').trim().toUpperCase();
   const payload = `data: ${JSON.stringify(actionData)}\n\n`;
   sseClients.forEach(client => {
     try {
-      if (!targetRoom || !client.roomCode || client.roomCode === targetRoom) {
-        client.res.write(payload);
+      if (targetRoom && client.roomCode && client.roomCode !== targetRoom) {
+        return; // Strict room isolation: do not send to clients in other rooms
       }
+      client.res.write(payload);
     } catch (e) {}
   });
 }
