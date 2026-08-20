@@ -181,10 +181,10 @@
         // BroadcastChannel
         try {
             if (typeof BroadcastChannel !== 'undefined') {
-                const channel = new BroadcastChannel(`ddvq_game_channel_${roomCode.toLowerCase()}`);
-                channel.onmessage = function(e) {
-                    handleData(e.data);
-                };
+                const channel1 = new BroadcastChannel(`ddvq_game_channel_${roomCode.toLowerCase()}`);
+                channel1.onmessage = function(e) { handleData(e.data); };
+                const channel2 = new BroadcastChannel('ddvq_game_channel');
+                channel2.onmessage = function(e) { handleData(e.data); };
             }
         } catch(e) {}
 

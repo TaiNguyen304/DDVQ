@@ -206,10 +206,17 @@ function updatePlayerContestants(contestants) {
     }
 
     const myName = (contestants[contestantId - 1]?.name || `Thí sinh ${contestantId}`).toLocaleUpperCase('vi-VN');
+    const myScore = contestants[contestantId - 1]?.score !== undefined ? contestants[contestantId - 1].score : 0;
+
     if (document.getElementById('s1_badge_box')) document.getElementById('s1_badge_box').innerText = `TS ${contestantId}: ${myName}`;
     if (document.getElementById('s2_badge_box')) document.getElementById('s2_badge_box').innerText = `TS ${contestantId}: ${myName}`;
     if (document.getElementById('s3_badge_box')) document.getElementById('s3_badge_box').innerText = `TS ${contestantId}: ${myName}`;
     if (document.getElementById('s4_badge_box')) document.getElementById('s4_badge_box').innerText = `TS ${contestantId}: ${myName}`;
+
+    if (document.getElementById('s1_score_box')) document.getElementById('s1_score_box').innerText = `ĐIỂM: ${myScore}`;
+    if (document.getElementById('s2_score_box')) document.getElementById('s2_score_box').innerText = `ĐIỂM: ${myScore}`;
+    if (document.getElementById('s3_score_box')) document.getElementById('s3_score_box').innerText = `ĐIỂM: ${myScore}`;
+    if (document.getElementById('s4_score_box')) document.getElementById('s4_score_box').innerText = `ĐIỂM: ${myScore}`;
 }
 
 try {

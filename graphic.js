@@ -675,6 +675,13 @@ function updateProjectorContestants(contestants) {
         const name = ts.name || `Thí sinh ${i}`;
         const score = ts.score !== undefined ? ts.score : 0;
 
+        // View 1: Xuất Phát (active turn)
+        if (typeof currentXuatPhatTurn !== 'undefined' && i === currentXuatPhatTurn) {
+            score1 = score;
+            const score1El = document.getElementById('score1');
+            if (score1El) score1El.innerText = score;
+        }
+
         // View 2: Ra Khơi
         const rkName = document.getElementById(`ten_ts${i}`);
         if (rkName) rkName.innerText = name;

@@ -71,17 +71,19 @@ function switchTab(index) {
         }
     });
 
+    syncContestantsUI();
+
     if (index === 1) {
         if (typeof updateTab1Preview === 'function') updateTab1Preview();
-        sendToProjector('SWITCH_ROUND', { activeRound: 'XUAT_PHAT', round: 'XUAT_PHAT', viewNum: 1 });
+        sendToProjector('SWITCH_ROUND', { activeRound: 'XUAT_PHAT', round: 'XUAT_PHAT', viewNum: 1, contestants: gameData.contestants });
     } else if (index === 2) {
         if (typeof selectRKQuestion === 'function') selectRKQuestion(typeof currentRKQuestion !== 'undefined' ? currentRKQuestion : 1);
-        sendToProjector('SWITCH_ROUND', { activeRound: 'RA_KHOI', round: 'RA_KHOI', viewNum: 2 });
+        sendToProjector('SWITCH_ROUND', { activeRound: 'RA_KHOI', round: 'RA_KHOI', viewNum: 2, contestants: gameData.contestants });
     } else if (index === 3) {
         if (typeof updateVuotSongState === 'function') updateVuotSongState();
-        sendToProjector('SWITCH_ROUND', { activeRound: 'VUOT_SONG', round: 'VUOT_SONG', viewNum: 3 });
+        sendToProjector('SWITCH_ROUND', { activeRound: 'VUOT_SONG', round: 'VUOT_SONG', viewNum: 3, contestants: gameData.contestants });
     } else if (index === 4) {
-        sendToProjector('SWITCH_ROUND', { activeRound: 'VINH_QUANG', round: 'VINH_QUANG', viewNum: 6 });
+        sendToProjector('SWITCH_ROUND', { activeRound: 'VINH_QUANG', round: 'VINH_QUANG', viewNum: 6, contestants: gameData.contestants });
     }
 }
 
@@ -725,29 +727,54 @@ function saveAllData(notify = false) {
 
 function syncContestantsUI() {
     if (gameData.contestants && Array.isArray(gameData.contestants)) {
+        const activeEl = document.activeElement;
         gameData.contestants.forEach((c, i) => {
             const idx = i + 1;
-            const tab0Input = document.getElementById(`ts_name_${idx}`);
-            if (tab0Input) tab0Input.value = c.name || `Thí sinh ${idx}`;
-            const tab1Input = document.getElementById(`ts${idx}_name`);
-            if (tab1Input) tab1Input.value = c.name || `Thí sinh ${idx}`;
-            const tab2Input = document.getElementById(`ts${idx}_name_rk`);
-            if (tab2Input) tab2Input.value = c.name || `Thí sinh ${idx}`;
-            const tab3Input = document.getElementById(`ts${idx}_name_vs`);
-            if (tab3Input) tab3Input.value = c.name || `Thí sinh ${idx}`;
-            const tab4Input = document.getElementById(`ts${idx}_name_vq`);
-            if (tab4Input) tab4Input.value = c.name || `Thí sinh ${idx}`;
-            
-            const disp = document.getElementById(`ts${idx}_score_disp`);
-            if (disp) disp.innerText = c.score || 0;
-            const dispRK = document.getElementById(`ts${idx}_score_disp_rk`);
-            if (dispRK) dispRK.innerText = c.score || 0;
-            const dispVS = document.getElementById(`ts${idx}_score_disp_vs`);
-            if (dispVS) dispVS.innerText = c.score || 0;
-            const dispVQ = document.getElementById(`ts${idx}_score_disp_vq`);
-            if (dispVQ) dispVQ.innerText = c.score || 0;
+            const scoreVal = c.score !== undefined ? c.score : 0;
+            const nameVal = c.name || `Thí sinh ${idx}`;
+
+            const nameInputs = [
+                document.getElementById(`ts_name_${idx}`),
+                document.getElementById(`ts${idx}_name`),
+                document.getElementById(`ts${idx}_name_rk`),
+                document.getElementById(`ts${idx}_name_vs`),
+                document.getElementById(`ts${idx}_name_vq`)
+            ];
+            nameInputs.forEach(inp => {
+                if (inp && inp !== activeEl && inp.value !== nameVal) {
+                    inp.value = nameVal;
+                }
+            });
+
+            const scoreDisps = [
+                document.getElementById(`ts${idx}_score_disp`),
+                document.getElementById(`ts${idx}_score_disp_rk`),
+                document.getElementById(`ts${idx}_score_disp_vs`),
+                document.getElementById(`ts${idx}_score_disp_vq`),
+                document.getElementById(`vq_ts${idx}_score_disp`)
+            ];
+            scoreDisps.forEach(disp => {
+                if (disp) disp.innerText = scoreVal;
+            });
         });
-        sendToProjector('UPDATE_SCORES', { contestants: gameData.contestants });
+
+        if (typeof updateTab1Preview === 'function') {
+            updateTab1Preview();
+        }
+
+        const payload = {
+            type: 'UPDATE_SCORES',
+            contestants: gameData.contestants,
+            gameData: gameData,
+            timestamp: Date.now()
+        };
+
+        sendToProjector('UPDATE_SCORES', payload);
+
+        try {
+            localStorage.setItem('ddvq_contestants', JSON.stringify(gameData.contestants));
+            localStorage.setItem('ddvq_latest_action', JSON.stringify(payload));
+        } catch(e) {}
     }
 }
 
@@ -1593,19 +1620,9 @@ function promptScore(idx) {
 
         gameData.contestants[idx - 1].score = val;
 
-        const disps = [
-            document.getElementById(`ts${idx}_score_disp`),
-            document.getElementById(`ts${idx}_score_disp_rk`),
-            document.getElementById(`ts${idx}_score_disp_vs`),
-            document.getElementById(`ts${idx}_score_disp_vq`),
-            document.getElementById(`vq_ts${idx}_score_disp`)
-        ];
-        disps.forEach(disp => { if (disp) disp.innerText = val; });
-
+        syncContestantsUI();
         saveAllData();
-        if (typeof updateTab1Preview === 'function') updateTab1Preview();
 
-        sendToProjector('UPDATE_SCORES', { contestants: gameData.contestants });
         sendToProjector('XUAT_PHAT_SELECT_CONTESTANT', {
             name: gameData.contestants[idx - 1].name,
             score: val
@@ -1679,17 +1696,8 @@ window.adjustScore = function(idx, delta) {
     const newScore = current + delta;
     gameData.contestants[idx - 1].score = newScore;
     
-    const disps = [
-        document.getElementById(`ts${idx}_score_disp`),
-        document.getElementById(`ts${idx}_score_disp_rk`),
-        document.getElementById(`ts${idx}_score_disp_vs`),
-        document.getElementById(`ts${idx}_score_disp_vq`)
-    ];
-    disps.forEach(disp => { if (disp) disp.innerText = newScore; });
-    
+    syncContestantsUI();
     saveAllData();
-    if (typeof updateTab1Preview === 'function') updateTab1Preview();
-    sendToProjector('UPDATE_SCORES', { contestants: gameData.contestants });
     
     if (typeof showToast === 'function') {
         const contestantName = gameData.contestants[idx - 1].name || `Thí sinh ${idx}`;
